@@ -21,7 +21,12 @@ public class OutputStream extends java.io.OutputStream {
         if (!metaInfo.isFile()) {
             throw new IOException("Opening file '" + file.getPath() + "' failed.");
         }
-        currentBlockIndex = metaInfo.startBlockIndex;
+        fs.freeBlock(metaInfo.startBlockIndex);
+        metaInfo.length = 0;
+        currentBlockIndex
+                = metaInfo.startBlockIndex
+                = (byte) fs.allocFreeBlock();
+        fs.writeMetaInfo(metaInfo);
         currentOffset = 0;
     }
 

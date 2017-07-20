@@ -64,6 +64,10 @@ public class FilePath {
         return (fs.getAttribute(this) & MetaInfo.MASK_FILE) != 0;
     }
 
+    public boolean isDir() throws FileNotFoundException {
+        return (fs.getAttribute(this) & MetaInfo.MASK_FILE) == 0;
+    }
+
     public boolean exists() {
         return fs.exists(this);
     }
@@ -92,7 +96,7 @@ public class FilePath {
         throw new UnsupportedOperationException();
     }
 
-    public FilePath[] list() throws IOException {
+    public FilePath[] list() {
         return fs.list(this);
     }
 
@@ -107,5 +111,9 @@ public class FilePath {
 
     public boolean isRootDir() {
         return path.equals(separatorChar);
+    }
+
+    public FilePath getParentFile() {
+        return new FilePath(getParent());
     }
 }

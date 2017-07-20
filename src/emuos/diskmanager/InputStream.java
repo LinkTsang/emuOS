@@ -14,7 +14,8 @@ public class InputStream extends java.io.InputStream {
     private int currentOffset;
     private int available;
 
-    public InputStream(FilePath file) throws IOException {
+    @SuppressWarnings("DuplicateThrows")
+    public InputStream(FilePath file) throws IOException, FileNotFoundException {
         metaInfo = fs.readMetaInfo(file.getPath());
         if (metaInfo == null) {
             throw new FileNotFoundException(file.getPath());
