@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<AnchorPane xmlns:fx="http://javafx.com/fxml/1" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308"
+            prefHeight="400.0"
+            prefWidth="600.0" stylesheets="@Terminal.css" xmlns="http://javafx.com/javafx/8"
+            fx:controller="emuos.ui.EditorController">
+    <VBox maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" prefHeight="400.0" prefWidth="600.0"
+          AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0"
+          AnchorPane.topAnchor="0.0">
+        <ToolBar prefHeight="40.0" prefWidth="200.0" VBox.vgrow="ALWAYS">
+            <Button mnemonicParsing="false" onAction="#handleSaveAction" text="Save">
+                <opaqueInsets>
+                    <Insets/>
+                </opaqueInsets>
+            </Button>
+            <Button mnemonicParsing="false" onAction="#handleCompileAction" text="Complie"/>
+            <Label fx:id="messageLabel"/>
+            <Pane HBox.hgrow="ALWAYS"/>
+            <Button mnemonicParsing="false" onAction="#handleExitAction" text="Exit"/>
+        </ToolBar>
+        <TextArea fx:id="textArea" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308"
+                  prefHeight="400.0" prefWidth="600.0" style=".content -fx-background-color: black;"
+                  text="Some say love, it is a river,&#10;That drowns, the tender reed.&#10;Some say love, it is a razor,&#10;that leaves, your soul to bleed.&#10;Some say love, it is a hunger,&#10;An endless aching need.&#10;I say love, it is a flower,&#10;And you its only seed.&#10;&#10;It's the heart, afraid of breaking,&#10;That never, learns to dance.&#10;It's the dream, afraid of waking,&#10;That never, takes the chance.&#10;It's the one, who won't be taken,&#10;Who cannot, seem to give.&#10;And the soul, afraid of dying,&#10;That never, learns to live.&#10;&#10;When the night, has been too lonely,&#10;And the road, has been too long.&#10;And you feel, that love is only,&#10;for the lucky, and the strong.&#10;Just remember, in the winter,&#10;Far beneath, the bitter snow,&#10;Lies a seed, that with the sun's love,&#10;In spring, becomes the rose..."
+                  VBox.vgrow="ALWAYS"/>
+    </VBox>
+</AnchorPane>
