@@ -100,9 +100,11 @@ class MetaInfo implements Iterable<MetaInfo> {
             for (int i = 0; i < NAME_LENGTH && name_ext[i] != 0; ++i) {
                 stringBuilder.append((char) name_ext[i]);
             }
-            stringBuilder.append('.');
-            for (int i = 0; i < EXT_LENGTH && name_ext[NAME_LENGTH + i] != 0; ++i) {
-                stringBuilder.append((char) name_ext[NAME_LENGTH + i]);
+            if (name_ext[NAME_LENGTH] != 0) {
+                stringBuilder.append('.');
+                for (int i = 0; i < EXT_LENGTH && name_ext[NAME_LENGTH + i] != 0; ++i) {
+                    stringBuilder.append((char) name_ext[NAME_LENGTH + i]);
+                }
             }
             return stringBuilder.toString();
         } else {
@@ -148,5 +150,9 @@ class MetaInfo implements Iterable<MetaInfo> {
     @Override
     public String toString() {
         return String.format("{Name: %s; File: %s; Length: %d }", getName(), isFile(), length);
+    }
+
+    boolean isDir() {
+        return (attribute & MASK_FILE) == 0;
     }
 }

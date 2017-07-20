@@ -33,9 +33,10 @@ public class FileSystem {
 
     private FileSystem() {
         File diskFile = new File(DISK_FILENAME);
+        boolean isNew = false;
         if (!diskFile.exists()) {
             try {
-                diskFile.createNewFile();
+                isNew = diskFile.createNewFile();
             } catch (IOException ex) {
                 Logger.getLogger(FileSystem.class.getName()).log(Level.SEVERE, null, ex);
             }
@@ -45,10 +46,18 @@ public class FileSystem {
         } catch (IOException ex) {
             Logger.getLogger(FileSystem.class.getName()).log(Level.SEVERE, null, ex);
         }
+        if (isNew) {
+            init();
+        }
     }
 
     public static FileSystem getFileSystem() {
         return fs;
+    }
+
+    public static String convertStreamToString(InputStream is) {
+        java.util.Scanner s = new java.util.Scanner(is).useDelimiter("\\A");
+        return s.hasNext() ? s.next() : "";
     }
 
     public byte read(int address) {
@@ -85,7 +94,7 @@ public class FileSystem {
         return -1;
     }
 
-    private void freeBlock(int index) {
+    void freeBlock(int index) {
         int nextBlockIndex = read(index);
         if (nextBlockIndex == 0) {
             return;
@@ -323,7 +332,7 @@ public class FileSystem {
      */
     private void delete(MetaInfo metaInfo) {
         if (metaInfo.isRootDir()) return;
-        if (!metaInfo.isFile()) {
+        if (metaInfo.isDir()) {
             for (MetaInfo subMetaInfo : metaInfo) {
                 delete(subMetaInfo);
             }
@@ -341,15 +350,17 @@ public class FileSystem {
         MetaInfo parent = readMetaInfo(file.getParent());
         String filename = file.getName();
         if (file.isRootDir() || parent == null || parent.isFile()) {
-            throw new IOException("Invalid path: " + file.getPath());
+            throw new IOException("cannot remove `" + file.getPath() + "': Invalid path");
         }
         if (parent.isRootDir()) {
             MetaInfo metaInfo = findInRoot(filename);
             if (metaInfo == null) {
-                throw new FileNotFoundException(file.getPath());
+                throw new FileNotFoundException("cannot remove `" + file.getPath() + "': No such file or directory");
             }
+            delete(metaInfo);
             metaInfo.name_ext[0] = '$';
             freeBlock(metaInfo.startBlockIndex);
+            writeMetaInfo(metaInfo);
             return;
         }
         Iterator<MetaInfo> iterator = parent.iterator();
@@ -369,7 +380,7 @@ public class FileSystem {
                 return;
             }
         }
-        throw new FileNotFoundException(file.getPath());
+        throw new FileNotFoundException("cannot remove `" + file.getPath() + "': No such file or directory");
     }
 
     public void copy(FilePath src, FilePath dest) throws IOException {
