@@ -5,16 +5,16 @@
  */
 package emuos.os;
 
-import java.util.LinkedList;
-import java.util.Queue;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.LinkedBlockingQueue;
 
 /**
  * @author Link
  */
 public class ProcessManager {
 
-    private final Queue<ProcessControlBlock> blockedQueue = new LinkedList<>();
-    private final Queue<ProcessControlBlock> readyQueue = new LinkedList<>();
+    private final BlockingQueue<ProcessControlBlock> blockedQueue = new LinkedBlockingQueue<>();
+    private final BlockingQueue<ProcessControlBlock> readyQueue = new LinkedBlockingQueue<>();
     private final MemoryManager memoryManager;
     private final CentralProcessingUnit CPU;
     private int nextPID = 0;
@@ -71,14 +71,14 @@ public class ProcessManager {
     /**
      * @return the blockedQueue
      */
-    public Queue<ProcessControlBlock> getBlockedQueue() {
+    public BlockingQueue<ProcessControlBlock> getBlockedQueue() {
         return blockedQueue;
     }
 
     /**
      * @return the readyQueue
      */
-    public Queue<ProcessControlBlock> getReadyQueue() {
+    public BlockingQueue<ProcessControlBlock> getReadyQueue() {
         return readyQueue;
     }
 }
