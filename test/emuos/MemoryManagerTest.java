@@ -176,7 +176,7 @@ public class MemoryManagerTest {
     }
 
     @Test
-    public void testExpection() {
+    public void testException() {
         try {
             new emuos.os.MemoryManager().alloc(0);
         } catch (Exception e) {
