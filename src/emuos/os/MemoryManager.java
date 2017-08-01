@@ -15,15 +15,17 @@ import java.util.ListIterator;
  */
 public class MemoryManager {
 
+    private static final int MAX_PCB_COUNT = 10;
+    private static final int DEFAULT_USER_SPACE_SIZE = 512;
     private final int USER_SPACE_SIZE;
-    private final AllocationMethod allocationMethod;
     private final LinkedList<Space> allocatedSpaces = new LinkedList<>();
     private final LinkedList<Space> freeSpaces = new LinkedList<>();
-    private final ProcessControlBlock PCBList[] = new ProcessControlBlock[10];
+    private final ProcessControlBlock PCBList[] = new ProcessControlBlock[MAX_PCB_COUNT];
     private byte userSpace[];
+    private Allocator allocator;
 
     public MemoryManager() {
-        this(512);
+        this(DEFAULT_USER_SPACE_SIZE);
     }
 
     public MemoryManager(int userSpaceSize) {
@@ -31,83 +33,24 @@ public class MemoryManager {
     }
 
     public MemoryManager(AllocationMethod allocationMethod, int userSpaceSize) {
-        this.allocationMethod = allocationMethod;
+        switch (allocationMethod) {
+            case FirstFit:
+                allocator = new FirstFitAllocator();
+                break;
+            default:
+                throw new UnsupportedOperationException();
+        }
         USER_SPACE_SIZE = userSpaceSize;
         userSpace = new byte[USER_SPACE_SIZE];
         freeSpaces.add(new Space(0, USER_SPACE_SIZE));
     }
 
     public int alloc(int size) {
-        if (size <= 0) {
-            throw new IllegalArgumentException("size must be greater than zero.");
-        }
-        switch (allocationMethod) {
-            case FirstFit: {
-                Iterator<Space> iterator = getFreeSpaces().iterator();
-                while (iterator.hasNext()) {
-                    Space space = iterator.next();
-                    if (space.size >= size) {
-                        Space newSpace = new Space(space.startAddress, size);
-                        getAllocatedSpaces().add(newSpace);
-                        space.startAddress += size;
-                        space.size -= size;
-                        if (space.size == 0) {
-                            iterator.remove();
-                        }
-                        return newSpace.startAddress;
-                    }
-                }
-            }
-            break;
-            default: {
-                throw new UnsupportedOperationException();
-            }
-        }
-        return -1;
+        return allocator.alloc(size);
     }
 
     public void free(int address) {
-        if (address < 0) {
-            throw new IllegalArgumentException(String.format("Illegal address, the address( = %d) must be greater than or equal to zero.", address));
-        }
-        Iterator<Space> allocatedSpaceIterator = getAllocatedSpaces().iterator();
-        while (allocatedSpaceIterator.hasNext()) {
-            Space allocatedSpace = allocatedSpaceIterator.next();
-            if (address == allocatedSpace.startAddress) {
-                ListIterator<Space> freeSpaceIterator = getFreeSpaces().listIterator();
-                while (freeSpaceIterator.hasNext()) {
-                    Space freeSpace = freeSpaceIterator.next();
-                    if (freeSpace.startAddress + freeSpace.size == address) {
-                        freeSpace.size += allocatedSpace.size;
-                        if (freeSpaceIterator.hasNext()) {
-                            Space nextfreeSpace = freeSpaceIterator.next();
-                            if (freeSpace.startAddress + freeSpace.size == nextfreeSpace.startAddress) {
-                                freeSpace.startAddress += nextfreeSpace.size;
-                                freeSpaceIterator.remove();
-                            }
-                        }
-                        allocatedSpaceIterator.remove();
-                        return;
-                    }
-                    if (allocatedSpace.startAddress + allocatedSpace.size == freeSpace.startAddress) {
-                        freeSpace.startAddress = allocatedSpace.startAddress;
-                        freeSpace.size += allocatedSpace.size;
-                        allocatedSpaceIterator.remove();
-                        return;
-                    }
-                    if (allocatedSpace.startAddress + allocatedSpace.size < freeSpace.startAddress) {
-                        freeSpaceIterator.previous();
-                        freeSpaceIterator.add(allocatedSpace);
-                        allocatedSpaceIterator.remove();
-                        return;
-                    }
-                }
-                freeSpaceIterator.add(allocatedSpace);
-                allocatedSpaceIterator.remove();
-                return;
-            }
-        }
-        throw new IllegalArgumentException(String.format("Illegal address ( = %d ).", address));
+        allocator.free(address);
     }
 
     public byte read(int address) {
@@ -202,4 +145,77 @@ public class MemoryManager {
             this.size = size;
         }
     }
+
+    private abstract class Allocator {
+        abstract int alloc(int size);
+
+        void free(int address) {
+            if (address < 0) {
+                throw new IllegalArgumentException(String.format("Illegal address, the address( = %d) must be greater than or equal to zero.", address));
+            }
+            Iterator<Space> allocatedSpaceIterator = getAllocatedSpaces().iterator();
+            while (allocatedSpaceIterator.hasNext()) {
+                Space allocatedSpace = allocatedSpaceIterator.next();
+                if (address == allocatedSpace.startAddress) {
+                    ListIterator<Space> freeSpaceIterator = getFreeSpaces().listIterator();
+                    while (freeSpaceIterator.hasNext()) {
+                        Space freeSpace = freeSpaceIterator.next();
+                        if (freeSpace.startAddress + freeSpace.size == address) {
+                            freeSpace.size += allocatedSpace.size;
+                            if (freeSpaceIterator.hasNext()) {
+                                Space nextFreeSpace = freeSpaceIterator.next();
+                                if (freeSpace.startAddress + freeSpace.size == nextFreeSpace.startAddress) {
+                                    freeSpace.startAddress += nextFreeSpace.size;
+                                    freeSpaceIterator.remove();
+                                }
+                            }
+                            allocatedSpaceIterator.remove();
+                            return;
+                        }
+                        if (allocatedSpace.startAddress + allocatedSpace.size == freeSpace.startAddress) {
+                            freeSpace.startAddress = allocatedSpace.startAddress;
+                            freeSpace.size += allocatedSpace.size;
+                            allocatedSpaceIterator.remove();
+                            return;
+                        }
+                        if (allocatedSpace.startAddress + allocatedSpace.size < freeSpace.startAddress) {
+                            freeSpaceIterator.previous();
+                            freeSpaceIterator.add(allocatedSpace);
+                            allocatedSpaceIterator.remove();
+                            return;
+                        }
+                    }
+                    freeSpaceIterator.add(allocatedSpace);
+                    allocatedSpaceIterator.remove();
+                    return;
+                }
+            }
+            throw new IllegalArgumentException(String.format("Illegal address ( = %d ).", address));
+        }
+    }
+
+    private class FirstFitAllocator extends Allocator {
+        @Override
+        int alloc(int size) {
+            if (size <= 0) {
+                throw new IllegalArgumentException("size must be greater than zero.");
+            }
+            Iterator<Space> iterator = getFreeSpaces().iterator();
+            while (iterator.hasNext()) {
+                Space space = iterator.next();
+                if (space.size >= size) {
+                    Space newSpace = new Space(space.startAddress, size);
+                    getAllocatedSpaces().add(newSpace);
+                    space.startAddress += size;
+                    space.size -= size;
+                    if (space.size == 0) {
+                        iterator.remove();
+                    }
+                    return newSpace.startAddress;
+                }
+            }
+            return -1;
+        }
+    }
+
 }
