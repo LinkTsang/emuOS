@@ -1,12 +1,12 @@
 package emuos.ui;
 
+import emuos.compiler.Generator;
+import emuos.compiler.TinyLexer;
+import emuos.compiler.TinyParser;
 import emuos.diskmanager.FilePath;
 import emuos.diskmanager.FileSystem;
 import emuos.diskmanager.InputStream;
 import emuos.diskmanager.OutputStream;
-import emuos.generator.Generator;
-import emuos.generator.TinyLexer;
-import emuos.generator.TinyParser;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
