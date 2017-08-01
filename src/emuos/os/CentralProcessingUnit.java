@@ -9,7 +9,7 @@ import java.util.BitSet;
 import java.util.Timer;
 import java.util.TimerTask;
 
-import static emuos.generator.Instruction.*;
+import static emuos.compiler.Instruction.*;
 
 /**
  * @author Link

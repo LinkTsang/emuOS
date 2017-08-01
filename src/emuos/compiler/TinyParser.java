@@ -3,9 +3,9 @@
  * To change this template file, choose Tools | Templates
  * and open the template in the editor.
  */
-package emuos.generator;
+package emuos.compiler;
 
-import emuos.generator.Token.Type;
+import emuos.compiler.Token.Type;
 
 /**
  * @author Link

@@ -5,13 +5,9 @@
  */
 package emuos;
 
-import emuos.generator.Generator;
-import emuos.generator.TinyLexer;
-import emuos.generator.TinyParser;
-import emuos.generator.Token;
+import emuos.compiler.*;
 import org.junit.*;
 
-import java.io.IOException;
 import java.util.Arrays;
 
 import static org.junit.Assert.assertEquals;
@@ -20,6 +16,12 @@ import static org.junit.Assert.assertEquals;
  * @author Link
  */
 public class CompilerTest {
+
+    private static final String code = "x=123\n"
+            + "x++\n"
+            + "x--\n"
+            + "!A6\n"
+            + "end";
 
     public CompilerTest() {
     }
@@ -42,11 +44,6 @@ public class CompilerTest {
 
     @Test
     public void testLexer() {
-        String code = "x=123\n"
-                + "x++\n"
-                + "x--\n"
-                + "!A6\n"
-                + "end";
         TinyLexer lexer = new TinyLexer(code);
         Token token;
         while ((token = lexer.nextToken()).type != Token.Type.EOF) {
@@ -71,11 +68,6 @@ public class CompilerTest {
 
     @Test
     public void testParser() {
-        String code = "x=123\n"
-                + "x++\n"
-                + "x--\n"
-                + "!A6\n"
-                + "end";
         TinyLexer lexer = new TinyLexer(code);
         Generator gen = new Generator();
         TinyParser parser = new TinyParser(lexer, gen);
@@ -83,18 +75,10 @@ public class CompilerTest {
     }
 
     @Test
-    public void testGenerator() throws IOException {
-        String code = "x=123\n"
-                + "x++\n"
-                + "x--\n"
-                + "!A6\n"
-                + "end";
-        TinyLexer lexer = new TinyLexer(code);
-        Generator gen = new Generator();
-        TinyParser parser = new TinyParser(lexer, gen);
-        parser.program();
-        byte[] byteCode = gen.getCode();
+    public void testCompiler() {
+        TinyCompiler compiler = new TinyCompiler();
+        compiler.compile(code);
+        byte[] byteCode = compiler.getByteCode();
         System.out.println(Arrays.toString(byteCode));
-        gen.dumpToFile("test.e");
     }
 }

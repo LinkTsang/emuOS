@@ -1,4 +1,4 @@
-package emuos.generator;
+package emuos.compiler;
 
 /**
  * Created by Link on 2017/7/19.
