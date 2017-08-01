@@ -19,9 +19,9 @@ import static org.junit.Assert.assertEquals;
 /**
  * @author Link
  */
-public class ComplierTest {
+public class CompilerTest {
 
-    public ComplierTest() {
+    public CompilerTest() {
     }
 
     @BeforeClass
