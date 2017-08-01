@@ -8,6 +8,7 @@ package emuos;
 import emuos.os.MemoryManager.Space;
 import org.junit.*;
 
+import java.util.Comparator;
 import java.util.Iterator;
 import java.util.PriorityQueue;
 
@@ -54,7 +55,8 @@ public class MemoryManagerTest {
     }
 
     private boolean isFreeListCorrect(emuos.os.MemoryManager manager) {
-        PriorityQueue<emuos.os.MemoryManager.Space> queue = new PriorityQueue((e0, e1) -> ((Space) e0).startAddress - ((Space) e1).startAddress);
+        PriorityQueue<emuos.os.MemoryManager.Space> queue = new PriorityQueue<>(
+                Comparator.comparingInt(e0 -> e0.startAddress));
         Iterator<emuos.os.MemoryManager.Space> freeSpaceIterator = manager.getFreeSpaces().iterator();
         Iterator<emuos.os.MemoryManager.Space> allocatedSpaceIterator = manager.getAllocatedSpaces().iterator();
         while (freeSpaceIterator.hasNext()) {
@@ -88,23 +90,23 @@ public class MemoryManagerTest {
         Assert.assertEquals(64, address3);
 
         manager.free(address2);
-        isFreeListCorrect(manager);
+        assertTrue(isFreeListCorrect(manager));
         showMemoryUsage(manager);
 
         manager.free(address0);
-        isFreeListCorrect(manager);
+        assertTrue(isFreeListCorrect(manager));
         showMemoryUsage(manager);
 
         manager.free(address1);
-        isFreeListCorrect(manager);
+        assertTrue(isFreeListCorrect(manager));
         showMemoryUsage(manager);
 
         manager.free(address3);
-        isFreeListCorrect(manager);
+        assertTrue(isFreeListCorrect(manager));
         showMemoryUsage(manager);
 
         manager.free(address4);
-        isFreeListCorrect(manager);
+        assertTrue(isFreeListCorrect(manager));
         showMemoryUsage(manager);
 
         assertTrue(manager.isAllFree());
