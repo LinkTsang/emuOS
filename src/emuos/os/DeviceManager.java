@@ -10,15 +10,17 @@ import java.util.*;
 /**
  * @author Link
  */
-class DeviceManager {
+public class DeviceManager {
     // time in milliseconds between successive task executions.
     private static final int PERIOD = 1000;
+    private static final int REST_TIME_INTERVAL = 1;
     private final Timer timer = new Timer(true);
+    // DeviceID --> DeviceList --> Device Map
     private final Map<Integer, DeviceList> deviceListMap = new HashMap<>();
     private boolean running;
-    private FinishedHandler finishedHandler;
+    private InterruptHandler finishedHandler;
 
-    DeviceManager() {
+    public DeviceManager() {
         DeviceList deviceListA = new DeviceList('A', 2);
         DeviceList deviceListB = new DeviceList('B', 3);
         DeviceList deviceListC = new DeviceList('C', 3);
@@ -27,11 +29,15 @@ class DeviceManager {
         deviceListMap.put((int) 'C', deviceListC);
     }
 
-    void setFinishedHandler(FinishedHandler handler) {
+    public InterruptHandler getFinishedHandler() {
+        return finishedHandler;
+    }
+
+    public void setFinishedHandler(InterruptHandler handler) {
         this.finishedHandler = handler;
     }
 
-    void start() {
+    public void start() {
         synchronized (this) {
             if (!running) {
                 timer.scheduleAtFixedRate(new DeviceTimerTask(), 0, PERIOD);
@@ -40,7 +46,7 @@ class DeviceManager {
         }
     }
 
-    void stop() {
+    public void stop() {
         synchronized (this) {
             if (running) {
                 timer.purge();
@@ -49,15 +55,74 @@ class DeviceManager {
         }
     }
 
-    synchronized void alloc(RequestInfo requestInfo) {
-        DeviceList deviceList = deviceListMap.get(requestInfo.getKind());
+    public synchronized void alloc(RequestInfo requestInfo) {
+        DeviceList deviceList = deviceListMap.get(requestInfo.getDeviceType());
         if (deviceList != null) {
             deviceList.getWaitingQueue().add(requestInfo);
         }
     }
 
-    static interface FinishedHandler {
+    public static interface InterruptHandler {
         void handler(DeviceInfo deviceInfo);
+    }
+
+    public static class DeviceInfo {
+        private final int type;
+        // rest time in milliseconds
+        private int restTime;
+        private ProcessControlBlock PCB;
+
+        DeviceInfo(int type) {
+            this.type = type;
+            restTime = 0;
+            PCB = null;
+        }
+
+        boolean isIdle() {
+            return PCB == null;
+        }
+
+        void release() {
+            PCB = null;
+            restTime = 0;
+        }
+
+        void alloc(ProcessControlBlock user, int time) {
+            this.PCB = user;
+            this.restTime = time;
+        }
+
+        public ProcessControlBlock getPCB() {
+            return PCB;
+        }
+
+        public int getType() {
+            return type;
+        }
+    }
+
+    public static class RequestInfo {
+        private final ProcessControlBlock pcb;
+        private final int deviceType;
+        private final int time;
+
+        public RequestInfo(ProcessControlBlock pcb, int deviceType, int time) {
+            this.pcb = pcb;
+            this.deviceType = deviceType;
+            this.time = time;
+        }
+
+        public ProcessControlBlock getPCB() {
+            return pcb;
+        }
+
+        public int getDeviceType() {
+            return deviceType;
+        }
+
+        public int getTime() {
+            return time;
+        }
     }
 
     private static class DeviceList {
@@ -81,57 +146,6 @@ class DeviceManager {
         }
     }
 
-    static class DeviceInfo {
-        final int kind;
-        // rest time in milliseconds
-        int restTime;
-        ProcessControlBlock user;
-
-        DeviceInfo(int kind) {
-            this.kind = kind;
-            restTime = 0;
-            user = null;
-        }
-
-        boolean isIdle() {
-            return user == null;
-        }
-
-        void release() {
-            user = null;
-            restTime = 0;
-        }
-
-        void alloc(ProcessControlBlock user, int time) {
-            this.user = user;
-            this.restTime = time;
-        }
-    }
-
-    static class RequestInfo {
-        private final ProcessControlBlock pcb;
-        private final int kind;
-        private final int time;
-
-        RequestInfo(ProcessControlBlock pcb, int kind, int time) {
-            this.pcb = pcb;
-            this.kind = kind;
-            this.time = time;
-        }
-
-        ProcessControlBlock getPcb() {
-            return pcb;
-        }
-
-        int getKind() {
-            return kind;
-        }
-
-        int getTime() {
-            return time;
-        }
-    }
-
     private class DeviceTimerTask extends java.util.TimerTask {
 
         @Override
@@ -140,7 +154,7 @@ class DeviceManager {
                 RequestInfo head = list.getWaitingQueue().peek();
                 for (DeviceInfo deviceInfo : list.getDeviceInfoList()) {
                     if (!deviceInfo.isIdle()) {
-                        deviceInfo.restTime -= PERIOD;
+                        deviceInfo.restTime -= REST_TIME_INTERVAL;
                         if (deviceInfo.restTime <= 0) {
                             if (finishedHandler != null) {
                                 finishedHandler.handler(deviceInfo);
@@ -150,7 +164,7 @@ class DeviceManager {
                     }
                     if (head != null && deviceInfo.isIdle()) {
                         head = list.getWaitingQueue().poll();
-                        deviceInfo.alloc(head.getPcb(), head.getTime());
+                        deviceInfo.alloc(head.getPCB(), head.getTime());
                         head = list.getWaitingQueue().peek();
                     }
                 }
