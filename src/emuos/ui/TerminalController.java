@@ -23,7 +23,7 @@ import java.util.*;
 import static emuos.ui.MainWindow.WINDOW_TITLE;
 
 /**
- * Created by Link on 2017/7/15.
+ * @author Link
  */
 public class TerminalController implements Initializable {
 

@@ -1,7 +1,7 @@
 package emuos.compiler;
 
 /**
- * Created by Link on 2017/7/19.
+ * @author Link
  */
 public abstract class Lexer {
     public static final int EOF = -1;
