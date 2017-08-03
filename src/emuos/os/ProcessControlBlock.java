@@ -5,8 +5,6 @@
  */
 package emuos.os;
 
-import java.util.BitSet;
-
 /**
  * @author Link
  */
@@ -14,14 +12,14 @@ public class ProcessControlBlock {
 
     private final int PID;
     private final int startAddress;
-    private int AX;
-    private BitSet PSW;
-    private int PC;
+    private CentralProcessingUnit.State CPUState;
     private ProcessState state;
 
     public ProcessControlBlock(int PID, int startAddress) {
         this.PID = PID;
         this.startAddress = startAddress;
+        CPUState = new CentralProcessingUnit.State();
+        CPUState.setPC(startAddress);
     }
 
     /**
@@ -31,31 +29,12 @@ public class ProcessControlBlock {
         return PID;
     }
 
-    /**
-     * @return the AX
-     */
-    public int getAX() {
-        return AX;
-    }
-
-    /**
-     * @return the PSW
-     */
-    public BitSet getPSW() {
-        return PSW;
-    }
-
-    /**
-     * @return the PC
-     */
-    public int getPC() {
-        return PC;
-    }
-
-    public void saveState(CentralProcessingUnit CPU) {
-        this.AX = CPU.getAX();
-        this.PC = CPU.getPC();
-        this.PSW = CPU.getPSW();
+    public void saveCPUState(CentralProcessingUnit.State state) {
+        try {
+            CPUState = (CentralProcessingUnit.State) state.clone();
+        } catch (CloneNotSupportedException e) {
+            e.printStackTrace();
+        }
     }
 
     @Override
@@ -90,6 +69,10 @@ public class ProcessControlBlock {
      */
     public int getStartAddress() {
         return startAddress;
+    }
+
+    public CentralProcessingUnit.State getCPUState() {
+        return CPUState;
     }
 
     public enum BlockReason {
