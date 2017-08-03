@@ -4,7 +4,7 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 
 /**
- * Created by Link on 2017/7/15.
+ * @author Link
  */
 public class InputStream extends java.io.InputStream {
 
