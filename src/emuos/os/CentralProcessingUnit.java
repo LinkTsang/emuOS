@@ -5,10 +5,15 @@
  */
 package emuos.os;
 
+import emuos.compiler.Instruction;
+
 import java.io.IOException;
 import java.util.BitSet;
 import java.util.Timer;
 import java.util.TimerTask;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.LinkedBlockingDeque;
+import java.util.logging.Logger;
 
 import static emuos.compiler.Instruction.*;
 
@@ -16,44 +21,49 @@ import static emuos.compiler.Instruction.*;
  * @author Link
  */
 public class CentralProcessingUnit {
-    private static final long CPU_PERIOD_MS = 1000;
+    private static final long CPU_PERIOD_MS = 100;
     private static final int INIT_TIME_SLICE = 6;
+    private static final Logger LOGGER = Logger.getLogger("cpu.log");
     private final DeviceManager deviceManager = new DeviceManager();
     private final MemoryManager memoryManager = new MemoryManager();
     private final ProcessManager processManager = new ProcessManager(this, memoryManager);
     private final Timer timer = new Timer(true);
-    private final State state = new State();
+    private volatile State state = new State();
     private int time;
     private int timeSlice = 1;
-    private Listener stepFinishedListener;
+    private Listener beforeStepListener;
+    private Listener afterStepListener;
+    private Listener intEndListener;
+    private Listener intTimeSliceListener;
+    private Listener intIOListener;
+    private BlockingQueue<Runnable> runnableQueue = new LinkedBlockingDeque<>();
 
     public CentralProcessingUnit() {
-        deviceManager.setFinishedHandler(deviceInfo -> processManager.awake(deviceInfo.getPCB()));
+        deviceManager.setFinishedHandler(deviceInfo -> runnableQueue.add(() -> state.setIntIO()));
     }
 
     public static void main(String[] args) throws InterruptedException, IOException {
         CentralProcessingUnit CPU = new CentralProcessingUnit();
         final boolean[] lastNullPCB = {false};
         CPU.setStepFinishedListener((cpu -> {
+            StringBuilder msg = new StringBuilder("\n");
             State state = cpu.getState();
             ProcessControlBlock pcb = cpu.processManager.getRunningProcess();
             if (pcb == null) {
                 if (!lastNullPCB[0]) {
-                    System.out.println("No any process is running...");
-                    System.out.println("----------");
+                    msg.append("==== There is no any running process ====\n");
                     lastNullPCB[0] = true;
+                    CentralProcessingUnit.LOGGER.info(msg.toString());
                 }
             } else {
-                System.out.printf(" CPU stat (Current Time: %d)\n", cpu.getTime());
-                System.out.printf("Current PID: %d\n", pcb == null ? 0 : pcb.getPID());
-                System.out.printf("TimeSlice = %d\n", cpu.getTimeSlice());
-                System.out.printf("AX = %d, PC = %d, PSW = %s, FLAGS = %s\n",
-                        state.getAX(),
-                        state.getPC(),
-                        state.getPSW().toString(),
-                        state.getFLAGS().toString()
-                );
-                System.out.println("----------");
+                lastNullPCB[0] = false;
+                msg.append("===== CPU Stat =====\n");
+                msg.append(String.format("  Current Time : %d\n", cpu.getTime()));
+                msg.append(String.format("  TimeSlice    : %d\n", cpu.getTimeSlice()));
+                msg.append(String.format("  Current PID  : %d\n", pcb.getPID()));
+                msg.append(String.format("  Current State: %s\n", state.toString()));
+                msg.append("====================\n");
+                CentralProcessingUnit.LOGGER.info(msg.toString());
             }
         }));
         CPU.run();
@@ -64,6 +74,7 @@ public class CentralProcessingUnit {
         for (int i = 0; i < 5; ++i) {
             processManager.create("/a/a.e");
         }
+        System.out.println("Waiting for CPU...");
         synchronized (CPU) {
             CPU.wait();
         }
@@ -80,9 +91,15 @@ public class CentralProcessingUnit {
         this.state.FLAGS = state.FLAGS;
     }
 
-    public Listener setStepFinishedListener(Listener listener) {
-        Listener oldListener = stepFinishedListener;
-        stepFinishedListener = listener;
+    public synchronized Listener setStepFinishedListener(Listener listener) {
+        Listener oldListener = beforeStepListener;
+        beforeStepListener = listener;
+        return oldListener;
+    }
+
+    public synchronized Listener setAfterStepListener(Listener listener) {
+        Listener oldListener = afterStepListener;
+        afterStepListener = listener;
         return oldListener;
     }
 
@@ -107,12 +124,6 @@ public class CentralProcessingUnit {
             if (--timeSlice <= 0) {
                 state.setIntTimeSlice();
             }
-        } else {
-            processManager.schedule();
-        }
-
-        if (stepFinishedListener != null) {
-            stepFinishedListener.handle(this);
         }
     }
 
@@ -153,11 +164,14 @@ public class CentralProcessingUnit {
                 }
                 break;
             case OPCODE_IO: {
+                LOGGER.info("\n**** IO REQ ****\n");
                 int deviceID = nextByte();
                 int usageTime = nextByte();
+                ProcessControlBlock process = processManager.getRunningProcess();
                 DeviceManager.RequestInfo requestInfo = new DeviceManager.RequestInfo(
-                        processManager.getRunningProcess(), deviceID, usageTime);
+                        process, deviceID, usageTime);
                 deviceManager.alloc(requestInfo);
+                processManager.block(process);
             }
             break;
             default:
@@ -167,28 +181,54 @@ public class CentralProcessingUnit {
     }
 
     private void interruptEnd() {
+        LOGGER.info("\n**** INT END ****\n"
+                + "  PCB  : " + processManager.getRunningProcess() + "\n"
+                + "  State: " + state.toString() + "\n"
+                + "*****************\n");
         processManager.destroy(processManager.getRunningProcess());
     }
 
     private void interruptTime() {
+        LOGGER.info("\n**** INT TIME SLICE ****\n");
         processManager.schedule();
     }
 
     private void interruptIO() {
-
+        LOGGER.info("\n**** INT IO ****\n");
+        BlockingQueue<ProcessControlBlock> queue = deviceManager.getFinishedQueue();
+        ProcessControlBlock pcb;
+        while ((pcb = queue.poll()) != null) {
+            processManager.awake(pcb);
+        }
     }
 
     public void run() {
         timer.schedule(new TimerTask() {
             @Override
             public void run() {
+                if (processManager.getRunningProcess() == null) {
+                    processManager.schedule();
+                }
+                if (beforeStepListener != null) {
+                    beforeStepListener.handle(CentralProcessingUnit.this);
+                }
                 CPU();
+                Runnable runnable;
+                while ((runnable = runnableQueue.poll()) != null) {
+                    runnable.run();
+                }
             }
         }, 0, CPU_PERIOD_MS);
+        deviceManager.start();
     }
 
     public void stop() {
+        deviceManager.stop();
         timer.cancel();
+    }
+
+    public void runLater(Runnable runnable) {
+        runnableQueue.add(runnable);
     }
 
     /**
@@ -221,8 +261,8 @@ public class CentralProcessingUnit {
         private int AX;
         private BitSet PSW = new BitSet(10);
         private BitSet FLAGS = new BitSet(8);
-        private int IR;
-        private int PC;
+        private int IR;         // last Instruction
+        private int PC;         // next PC
 
         public State() {
         }
@@ -232,6 +272,27 @@ public class CentralProcessingUnit {
             State state = (State) super.clone();
             state.PSW = (BitSet) PSW.clone();
             return state;
+        }
+
+        @Override
+        public String toString() {
+            StringBuilder stringBuilder = new StringBuilder();
+            stringBuilder.append("State { ")
+                    .append("AX=").append(AX)
+                    .append(", PC=").append(PC)
+                    .append(", IR=").append(Instruction.getName(IR));
+            stringBuilder.append(", FLAGS={ ");
+            if (FLAGS.get(PSW_CF)) stringBuilder.append("CF ");
+            if (FLAGS.get(PSW_SF)) stringBuilder.append("SF ");
+            if (FLAGS.get(PSW_OF)) stringBuilder.append("OF ");
+            if (FLAGS.get(PSW_ZF)) stringBuilder.append("ZF ");
+            stringBuilder.append("}");
+            stringBuilder.append(", PSW={ ");
+            if (isIntIO()) stringBuilder.append("INT_IO ");
+            if (isIntTimeSlice()) stringBuilder.append("INT_TIME_SLICE ");
+            if (isIntEnd()) stringBuilder.append("INT_END ");
+            stringBuilder.append("}}");
+            return stringBuilder.toString();
         }
 
         public int getAX() {

@@ -7,6 +7,7 @@ package emuos.os;
 
 import emuos.diskmanager.FilePath;
 import emuos.diskmanager.InputStream;
+import emuos.os.ProcessControlBlock.ProcessState;
 
 import java.io.IOException;
 import java.util.concurrent.BlockingQueue;
@@ -57,23 +58,31 @@ public class ProcessManager {
 
     public synchronized void destroy(ProcessControlBlock PCB) {
         if (PCB.equals(runningProcess)) {
+            assert PCB.getState() == ProcessState.RUNNING;
             runningProcess = null;
+        } else if (!readyQueue.remove(PCB)) {
+            // FIXME: stop IO?
+            // blockedQueue.remove(PCB);
+            throw new RuntimeException("There is no such PCB in readyQueue.");
         }
         memoryManager.free(PCB.getStartAddress());
         if (!memoryManager.removePCB(PCB)) {
             throw new RuntimeException("There is no such PCB.");
         }
-        if (!readyQueue.remove(PCB)) {
-            // FIXME: stop IO?
-            blockedQueue.remove(PCB);
-        }
         schedule();
     }
 
     public synchronized void block(ProcessControlBlock PCB) {
-        if (PCB.getState() == ProcessControlBlock.ProcessState.READY) {
+        if (PCB.equals(runningProcess)) {
+            assert PCB.getState() == ProcessState.RUNNING;
+            PCB.setState(ProcessState.BLOCKED);
+            PCB.saveCPUState(cpu.getState());
+            getBlockedQueue().add(PCB);
+            runningProcess = null;
+            schedule();
+        } else if (PCB.getState() == ProcessState.READY) {
             getReadyQueue().remove(PCB);
-            PCB.setState(ProcessControlBlock.ProcessState.BLOCKED);
+            PCB.setState(ProcessState.BLOCKED);
             getBlockedQueue().add(PCB);
         } else {
             throw new RuntimeException("Wrong PCB state");
@@ -81,9 +90,9 @@ public class ProcessManager {
     }
 
     public synchronized void awake(ProcessControlBlock PCB) {
-        if (PCB.getState() == ProcessControlBlock.ProcessState.BLOCKED) {
+        if (PCB.getState() == ProcessState.BLOCKED) {
             getBlockedQueue().remove(PCB);
-            PCB.setState(ProcessControlBlock.ProcessState.READY);
+            PCB.setState(ProcessState.READY);
             getReadyQueue().add(PCB);
         } else {
             throw new RuntimeException("Wrong PCB state");
@@ -93,11 +102,13 @@ public class ProcessManager {
     public synchronized void schedule() {
         if (runningProcess != null) {
             runningProcess.saveCPUState(cpu.getState());
+            runningProcess.setState(ProcessState.READY);
             readyQueue.add(runningProcess);
         }
         runningProcess = readyQueue.poll();
         cpu.resetTimeSlice();
         if (runningProcess != null) {
+            runningProcess.setState(ProcessState.RUNNING);
             cpu.setState(runningProcess.getCPUState());
         }
     }

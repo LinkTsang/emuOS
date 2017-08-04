@@ -18,6 +18,7 @@ public class ProcessControlBlock {
     public ProcessControlBlock(int PID, int startAddress) {
         this.PID = PID;
         this.startAddress = startAddress;
+        state = ProcessState.READY;
         CPUState = new CentralProcessingUnit.State();
         CPUState.setPC(startAddress);
     }
@@ -73,6 +74,15 @@ public class ProcessControlBlock {
 
     public CentralProcessingUnit.State getCPUState() {
         return CPUState;
+    }
+
+    @Override
+    public String toString() {
+        return "ProcessControlBlock{" +
+                "PID=" + PID +
+                ", startAddress=" + startAddress +
+                ", state=" + state +
+                '}';
     }
 
     public enum BlockReason {
