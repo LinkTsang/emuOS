@@ -225,6 +225,7 @@ public class CentralProcessingUnit {
     public void stop() {
         deviceManager.stop();
         timer.cancel();
+        timer.purge();
     }
 
     public void runLater(Runnable runnable) {

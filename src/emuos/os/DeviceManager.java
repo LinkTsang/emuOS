@@ -56,6 +56,7 @@ public class DeviceManager {
     public void stop() {
         synchronized (this) {
             if (running) {
+                timer.cancel();
                 timer.purge();
                 running = false;
             }
