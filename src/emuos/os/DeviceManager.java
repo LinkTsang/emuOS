@@ -6,6 +6,8 @@
 package emuos.os;
 
 import java.util.*;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.LinkedBlockingDeque;
 
 /**
  * @author Link
@@ -17,6 +19,7 @@ public class DeviceManager {
     private final Timer timer = new Timer(true);
     // DeviceID --> DeviceList --> Device Map
     private final Map<Integer, DeviceList> deviceListMap = new HashMap<>();
+    private final BlockingQueue<ProcessControlBlock> finishedQueue = new LinkedBlockingDeque<>();
     private boolean running;
     private InterruptHandler finishedHandler;
 
@@ -27,6 +30,10 @@ public class DeviceManager {
         deviceListMap.put((int) 'A', deviceListA);
         deviceListMap.put((int) 'B', deviceListB);
         deviceListMap.put((int) 'C', deviceListC);
+    }
+
+    public BlockingQueue<ProcessControlBlock> getFinishedQueue() {
+        return finishedQueue;
     }
 
     public InterruptHandler getFinishedHandler() {
@@ -56,13 +63,14 @@ public class DeviceManager {
     }
 
     public synchronized void alloc(RequestInfo requestInfo) {
+        assert requestInfo.pcb.getState() == ProcessControlBlock.ProcessState.BLOCKED;
         DeviceList deviceList = deviceListMap.get(requestInfo.getDeviceType());
         if (deviceList != null) {
             deviceList.getWaitingQueue().add(requestInfo);
         }
     }
 
-    public static interface InterruptHandler {
+    public interface InterruptHandler {
         void handler(DeviceInfo deviceInfo);
     }
 
@@ -159,6 +167,7 @@ public class DeviceManager {
                             if (finishedHandler != null) {
                                 finishedHandler.handler(deviceInfo);
                             }
+                            finishedQueue.add(deviceInfo.getPCB());
                             deviceInfo.release();
                         }
                     }
