@@ -54,13 +54,13 @@ public class Generator {
         byte id;
         switch (ID) {
             case "A":
-                id = 0;
+                id = 'A';
                 break;
             case "B":
-                id = 1;
+                id = 'B';
                 break;
             case "C":
-                id = 2;
+                id = 'C';
                 break;
             default:
                 throw new Error(String.format("Unsupported device ID %s.", ID));
