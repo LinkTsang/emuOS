@@ -17,6 +17,23 @@ public class Instruction {
     public static final byte OPCODE_IO = 4;
     protected Type type;
 
+    public static String getName(int opcode) {
+        switch (opcode) {
+            case OPCODE_ASSIGNMENT:
+                return "OPCODE_ASSIGNMENT";
+            case OPCODE_DECREASE:
+                return "OPCODE_DECREASE";
+            case OPCODE_END:
+                return "OPCODE_END";
+            case OPCODE_INCREASE:
+                return "OPCODE_INCREASE";
+            case OPCODE_IO:
+                return "OPCODE_IO";
+            default:
+                return "OPCODE_UNKNOWN";
+        }
+    }
+
     public enum Type {
         ASSIGNMENT,
         INCREASE,
