@@ -30,8 +30,12 @@ public class ProcessManager {
         this.memoryManager = memoryManager;
     }
 
-    public synchronized ProcessControlBlock create(String path) throws IOException {
+    public ProcessControlBlock create(String path) throws IOException {
         FilePath imageFile = new FilePath(path);
+        return create(imageFile);
+    }
+
+    public synchronized ProcessControlBlock create(FilePath imageFile) throws IOException {
         if (!imageFile.exists() || !imageFile.isFile()) return null;
         int imageSize = imageFile.size();
 
