@@ -37,7 +37,6 @@ public class CentralProcessingUnit {
     private Listener intTimeSliceListener;
     private Listener intIOListener;
     private BlockingQueue<Runnable> runnableQueue = new LinkedBlockingDeque<>();
-
     public CentralProcessingUnit() {
         deviceManager.setFinishedHandler(deviceInfo -> runnableQueue.add(() -> state.setIntIO()));
     }
@@ -78,6 +77,18 @@ public class CentralProcessingUnit {
         synchronized (CPU) {
             CPU.wait();
         }
+    }
+
+    public DeviceManager getDeviceManager() {
+        return deviceManager;
+    }
+
+    public MemoryManager getMemoryManager() {
+        return memoryManager;
+    }
+
+    public ProcessManager getProcessManager() {
+        return processManager;
     }
 
     public synchronized Listener setIntEndListener(Listener listener) {
