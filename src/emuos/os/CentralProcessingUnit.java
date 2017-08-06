@@ -174,7 +174,7 @@ public class CentralProcessingUnit {
                 if (state.getAX() == 0) {
                     FLAGS.set(State.PSW_ZF);
                 }
-                if (state.getAX() <= 0) {
+                if (state.getAX() < 0) {
                     FLAGS.set(State.PSW_SF);
                 }
             }
