@@ -210,14 +210,16 @@ public class CentralProcessingUnit {
     }
 
     private void interruptEnd() {
+        ProcessControlBlock pcb = processManager.getRunningProcess();
         LOGGER.info("\n**** INT END ****\n"
-                + "  PCB  : " + processManager.getRunningProcess() + "\n"
+                + "  PCB  : " + pcb + "\n"
                 + "  State: " + state.toString() + "\n"
                 + "*****************\n");
+        pcb.saveCPUState(state);
         if (intEndListener != null) {
             intEndListener.handle(this);
         }
-        processManager.destroy(processManager.getRunningProcess());
+        processManager.destroy(pcb);
     }
 
     private void interruptTime() {
