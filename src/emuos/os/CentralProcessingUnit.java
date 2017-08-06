@@ -80,6 +80,24 @@ public class CentralProcessingUnit {
         }
     }
 
+    public synchronized Listener setIntEndListener(Listener listener) {
+        Listener oldListener = intEndListener;
+        intEndListener = listener;
+        return oldListener;
+    }
+
+    public synchronized Listener setIntTimeSliceListener(Listener listener) {
+        Listener oldListener = intTimeSliceListener;
+        intTimeSliceListener = listener;
+        return oldListener;
+    }
+
+    public synchronized Listener setIntIOListener(Listener listener) {
+        Listener oldListener = intIOListener;
+        intIOListener = listener;
+        return oldListener;
+    }
+
     public State getState() {
         return state;
     }
@@ -185,16 +203,25 @@ public class CentralProcessingUnit {
                 + "  PCB  : " + processManager.getRunningProcess() + "\n"
                 + "  State: " + state.toString() + "\n"
                 + "*****************\n");
+        if (intEndListener != null) {
+            intEndListener.handle(this);
+        }
         processManager.destroy(processManager.getRunningProcess());
     }
 
     private void interruptTime() {
         LOGGER.info("\n**** INT TIME SLICE ****\n");
+        if (intTimeSliceListener != null) {
+            intTimeSliceListener.handle(this);
+        }
         processManager.schedule();
     }
 
     private void interruptIO() {
         LOGGER.info("\n**** INT IO ****\n");
+        if (intIOListener != null) {
+            intIOListener.handle(this);
+        }
         BlockingQueue<ProcessControlBlock> queue = deviceManager.getFinishedQueue();
         ProcessControlBlock pcb;
         while ((pcb = queue.poll()) != null) {
