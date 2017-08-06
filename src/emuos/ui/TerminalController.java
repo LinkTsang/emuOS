@@ -3,6 +3,9 @@ package emuos.ui;
 import emuos.diskmanager.FilePath;
 import emuos.diskmanager.FileSystem;
 import emuos.diskmanager.InputStream;
+import emuos.os.CentralProcessingUnit;
+import emuos.os.ProcessControlBlock;
+import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.fxml.Initializable;
@@ -27,9 +30,9 @@ import static emuos.ui.MainWindow.WINDOW_TITLE;
  */
 public class TerminalController implements Initializable {
 
+    private final Set<ProcessControlBlock> waitingQueue = new HashSet<>();
     @FXML
     private TextArea inputArea;
-
     private String promptString = "$ ";
     private FilePath workingDirectory = new FilePath("/");
     private CommandHistory commandHistory = new CommandHistory();
@@ -37,6 +40,8 @@ public class TerminalController implements Initializable {
     private Map<String, Method> commandMap = new HashMap<>();
     private Stage stage;
     private Parent self;
+    private MainWindow mainWindow;
+    private boolean isShellWaiting = false;
 
     /**
      * Initializes the controller class.
@@ -107,6 +112,9 @@ public class TerminalController implements Initializable {
                 keyEvent.consume();
                 return;
             case ENTER: {
+                if (isShellWaiting) {
+                    break;
+                }
                 String content = inputArea.getText();
                 String inputLine = content.substring(content.lastIndexOf('\n') + 1);
                 inputLine = inputLine.substring(inputLine.indexOf(promptString) + promptString.length());
@@ -140,7 +148,9 @@ public class TerminalController implements Initializable {
                 if (inputArea.getCaretPosition() > inputArea.getText().lastIndexOf('\n') + promptString.length()) {
                     print("\n");
                 }
-                showPrompt();
+                if (!isShellWaiting) {
+                    showPrompt();
+                }
                 keyEvent.consume();
             }
         }
@@ -357,6 +367,38 @@ public class TerminalController implements Initializable {
         print("Finished!");
     }
 
+    @CommandAnnotation(name = {"exec"})
+    private void exec(String args) {
+        if (args.isEmpty()) {
+            print("Usage: exec [file]");
+            return;
+        }
+        FilePath file = getFilePath(args);
+        try {
+            ProcessControlBlock pcb = mainWindow.getKernel().getProcessManager().create(file);
+            wait(pcb);
+        } catch (IOException e) {
+            print(e.getMessage());
+            e.printStackTrace();
+        }
+    }
+
+    private void wait(ProcessControlBlock pcb) {
+        waitingQueue.add(pcb);
+        blockShell();
+    }
+
+    private void blockShell() {
+        isShellWaiting = true;
+        inputArea.setEditable(false);
+    }
+
+    private void activeShell() {
+        isShellWaiting = false;
+        inputArea.setEditable(true);
+        showPrompt();
+    }
+
     @CommandAnnotation(name = {"exit"})
     private void exit(String args) {
         stage.close();
@@ -387,6 +429,27 @@ public class TerminalController implements Initializable {
         }
         stringBuilder.append('\n');
         print(stringBuilder.toString());
+    }
+
+    public void setMainWindow(MainWindow mainWindow) {
+        this.mainWindow = mainWindow;
+        CentralProcessingUnit cpu = mainWindow.getKernel();
+        cpu.setIntEndListener(c -> {
+            final ProcessControlBlock pcb = c.getProcessManager().getRunningProcess();
+            Platform.runLater(() -> {
+                if (waitingQueue.remove(pcb)) {
+                    int exitCode = pcb.getCPUState().getAX();
+                    if (exitCode != 0) {
+                        print("Process (PID: "
+                                + pcb.getPID()
+                                + ") exited with code: "
+                                + exitCode
+                                + "\n");
+                    }
+                    activeShell();
+                }
+            });
+        });
     }
 
     @Target(ElementType.METHOD)

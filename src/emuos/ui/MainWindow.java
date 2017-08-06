@@ -5,6 +5,7 @@
  */
 package emuos.ui;
 
+import emuos.os.CentralProcessingUnit;
 import javafx.application.Application;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
@@ -19,6 +20,7 @@ import java.io.IOException;
 public class MainWindow extends Application {
 
     public final static String WINDOW_TITLE = "emuOS";
+    private final CentralProcessingUnit cpu = new CentralProcessingUnit();
 
     /**
      * @param args the command line arguments
@@ -27,15 +29,25 @@ public class MainWindow extends Application {
         launch(args);
     }
 
+    public CentralProcessingUnit getKernel() {
+        return cpu;
+    }
+
     @Override
     public void start(Stage primaryStage) throws IOException {
+        loadKernel();
         FXMLLoader terminalLoader = new FXMLLoader(getClass().getResource("Terminal.fxml"));
         Parent root = terminalLoader.load();
         Scene scene = new Scene(root, 800, 600);
         primaryStage.setTitle(WINDOW_TITLE);
         primaryStage.setScene(scene);
-        ((TerminalController) terminalLoader.getController()).setStage(primaryStage);
+        TerminalController terminalController = terminalLoader.getController();
+        terminalController.setStage(primaryStage);
+        terminalController.setMainWindow(this);
         primaryStage.show();
     }
 
+    void loadKernel() {
+        cpu.run();
+    }
 }
