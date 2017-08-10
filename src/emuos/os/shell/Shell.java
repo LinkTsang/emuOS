@@ -118,6 +118,7 @@ public class Shell {
             waitInputHandler.handle();
 
             String commandLine = scanner.nextLine();
+            if (commandLine.isEmpty()) continue;
             String[] args = commandLine.split("\\s+", 2);
             String command = args[0];
             Command handler = getCommandHandler(command);
