@@ -17,6 +17,7 @@ public class Shell {
     private final Set<ProcessControlBlock> waitingQueue = new HashSet<>();
     private final Object processWaiter = new Object();
     private final String promptString = "$ ";
+    private final CommandHistory commandHistory = new CommandHistory();
     private Map<String, Command> commandMap = new HashMap<>();
     private FilePath workingDirectory = new FilePath("/");
     private CentralProcessingUnit cpu;
@@ -51,6 +52,10 @@ public class Shell {
         Shell shell = new Shell(cpu, System.in, System.out);
         shell.setExitHandler(shell::stop);
         shell.run();
+    }
+
+    public CommandHistory getCommandHistory() {
+        return commandHistory;
     }
 
     public Handler getWaitInputHandler() {
@@ -119,6 +124,7 @@ public class Shell {
 
             String commandLine = scanner.nextLine();
             if (commandLine.isEmpty()) continue;
+            commandHistory.add(commandLine);
             String[] args = commandLine.split("\\s+", 2);
             String command = args[0];
             Command handler = getCommandHandler(command);

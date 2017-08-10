@@ -3,6 +3,7 @@ package emuos.ui;
 import emuos.diskmanager.FilePath;
 import emuos.os.CentralProcessingUnit;
 import emuos.os.shell.Command;
+import emuos.os.shell.CommandHistory;
 import emuos.os.shell.Shell;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
@@ -17,8 +18,6 @@ import javafx.stage.Stage;
 import java.io.IOException;
 import java.io.StringReader;
 import java.net.URL;
-import java.util.LinkedList;
-import java.util.ListIterator;
 import java.util.ResourceBundle;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingDeque;
@@ -30,7 +29,6 @@ import static emuos.ui.MainWindow.WINDOW_TITLE;
  */
 public class TerminalController implements Initializable {
 
-    private final CommandHistory commandHistory = new CommandHistory();
     private final EmuInputStream eis = new EmuInputStream();
     private final EmuOutputStream eos = new EmuOutputStream();
     @FXML
@@ -70,6 +68,7 @@ public class TerminalController implements Initializable {
                 return;
             case UP:
             case DOWN: {
+                CommandHistory commandHistory = shell.getCommandHistory();
                 clearInput();
                 print(keyEvent.getCode() == KeyCode.UP ? commandHistory.prev() : commandHistory.next());
                 keyEvent.consume();
@@ -93,9 +92,6 @@ public class TerminalController implements Initializable {
                 String content = inputArea.getText();
                 String inputLine = content.substring(content.lastIndexOf('\n') + 1);
                 inputLine = inputLine.substring(inputLine.indexOf(promptString) + promptString.length());
-                if (!inputLine.isEmpty()) {
-                    commandHistory.add(inputLine);
-                }
                 eis.queue.add(new StringReader(inputLine + "\n"));
             }
         }
@@ -153,47 +149,6 @@ public class TerminalController implements Initializable {
         });
         Thread shellThread = new Thread(shell::run);
         shellThread.start();
-    }
-
-    private static class CommandHistory {
-        private static final int MAX_HISTORY_COUNT = 50;
-        private final LinkedList<String> historyList = new LinkedList<>();
-        private ListIterator<String> current = historyList.listIterator();
-
-        void add(String command) {
-            if (!historyList.isEmpty() && historyList.getFirst().equals(command)) {
-                return;
-            }
-            historyList.addFirst(command);
-            if (historyList.size() > MAX_HISTORY_COUNT) {
-                historyList.removeLast();
-            }
-            reset();
-        }
-
-        void reset() {
-            current = historyList.listIterator();
-        }
-
-        String prev() {
-            if (current.hasNext()) {
-                return current.next();
-            }
-            if (current.hasPrevious()) {
-                current.previous();
-                return current.next();
-            }
-            return "";
-
-        }
-
-        String next() {
-            if (current.hasPrevious()) {
-                return current.previous();
-            } else {
-                return "";
-            }
-        }
     }
 
     private class EmuInputStream extends java.io.InputStream {
