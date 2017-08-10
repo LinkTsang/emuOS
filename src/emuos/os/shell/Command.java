@@ -1,13 +1,18 @@
 package emuos.os.shell;
 
-import java.lang.annotation.*;
-
 /**
  * @author Link
  */
-@Target(ElementType.METHOD)
-@Retention(RetentionPolicy.RUNTIME)
-@Documented
-public @interface Command {
-    String[] name();
+public abstract class Command {
+    private final String[] names;
+
+    public Command(String... names) {
+        this.names = names;
+    }
+
+    public String[] names() {
+        return names;
+    }
+
+    public abstract void execute(String args);
 }

@@ -6,8 +6,6 @@ import emuos.os.CentralProcessingUnit;
 import emuos.os.ProcessControlBlock;
 
 import java.io.*;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
 import java.util.*;
 
 /**
@@ -19,7 +17,7 @@ public class Shell {
     private final Set<ProcessControlBlock> waitingQueue = new HashSet<>();
     private final Object processWaiter = new Object();
     private final String promptString = "$ ";
-    private Map<String, Method> commandMap = new HashMap<>();
+    private Map<String, Command> commandMap = new HashMap<>();
     private FilePath workingDirectory = new FilePath("/");
     private CentralProcessingUnit cpu;
     private Handler exitHandler = Handler.NULL;
@@ -122,15 +120,11 @@ public class Shell {
             String commandLine = scanner.nextLine();
             String[] args = commandLine.split("\\s+", 2);
             String command = args[0];
-            Method method = getCommandHandler(command);
-            if (method == null) {
+            Command handler = getCommandHandler(command);
+            if (handler == null) {
                 out.println(command + ": command not found");
             } else {
-                try {
-                    method.invoke(this, args.length == 2 ? args[1] : "");
-                } catch (IllegalAccessException | InvocationTargetException e) {
-                    e.printStackTrace();
-                }
+                handler.execute(args.length == 2 ? args[1] : "");
             }
 
             if (out.isDirty()) {
@@ -163,269 +157,286 @@ public class Shell {
     }
 
     private void loadCommandMap(Object object) {
-        for (Method method : object.getClass().getDeclaredMethods()) {
-            if (method.isAnnotationPresent(Command.class)) {
-                Command commandAnnotation = method.getAnnotation(Command.class);
-                for (String name : commandAnnotation.name()) {
-                    commandMap.put(name, method);
+        registerCommandHandler(new Command("dir") {
+            @Override
+            public void execute(String args) {
+                FilePath filePath = args.isEmpty() ? workingDirectory : getFilePath(args);
+                try {
+                    FilePath[] files = filePath.list();
+                    if (files == null) {
+                        print(filePath.getPath() + ": Not a directory");
+                        return;
+                    }
+                    int maxNameLength = 0;
+                    for (FilePath file : files) {
+                        int length = file.getName().length();
+                        if (length > maxNameLength) {
+                            maxNameLength = length;
+                        }
+                    }
+                    String fmt = "%-" + (maxNameLength + 4) + "s";
+                    for (FilePath file : files) {
+                        if (file.isDir()) {
+                            print("<DIR>   ");
+                            print(file.getName());
+                        } else {
+                            print("        ");
+                            print(String.format(fmt, file.getName()));
+                            print(String.valueOf(file.size()));
+                        }
+                        print("\n");
+                    }
+                } catch (IOException e) {
+                    print(e.getMessage());
                 }
             }
-        }
-    }
+        });
 
-    public void registerCommandHandler(Method method) {
-        Command commandAnnotation = method.getAnnotation(Command.class);
-        if (commandAnnotation == null)
-            throw new RuntimeException("Annotation "
-                    + Command.class.getCanonicalName()
-                    + " is required for method '"
-                    + method.getName() + "'.");
-        for (String name : commandAnnotation.name()) {
-            commandMap.put(name, method);
-        }
-    }
-
-    public Method getCommandHandler(String name) {
-        return commandMap.get(name);
-    }
-
-    @Command(name = {"dir"})
-    private void dir(String args) {
-        FilePath filePath = args.isEmpty() ? workingDirectory : getFilePath(args);
-        try {
-            FilePath[] files = filePath.list();
-            if (files == null) {
-                print(filePath.getPath() + ": Not a directory");
-                return;
-            }
-            int maxNameLength = 0;
-            for (FilePath file : files) {
-                int length = file.getName().length();
-                if (length > maxNameLength) {
-                    maxNameLength = length;
+        registerCommandHandler(new Command("create") {
+            @Override
+            public void execute(String args) {
+                FilePath filePath = getFilePath(args);
+                try {
+                    filePath.create();
+                } catch (IOException e) {
+                    print(e.getMessage());
                 }
             }
-            String fmt = "%-" + (maxNameLength + 4) + "s";
-            for (FilePath file : files) {
-                if (file.isDir()) {
-                    print("<DIR>   ");
-                    print(file.getName());
+        });
+
+        registerCommandHandler(new Command("delete", "del") {
+            @Override
+            public void execute(String args) {
+                FilePath filePath = getFilePath(args);
+                try {
+                    filePath.delete();
+                } catch (IOException e) {
+                    print(e.getMessage());
+                }
+            }
+        });
+
+        registerCommandHandler(new Command("type") {
+            @Override
+            public void execute(String args) {
+                FilePath filePath = getFilePath(args);
+                if (filePath.exists()) {
+                    try (emuos.diskmanager.InputStream is = new emuos.diskmanager.InputStream(filePath)) {
+                        print(FileSystem.convertStreamToString(is));
+                    } catch (IOException e) {
+                        print(e.getMessage());
+                    }
                 } else {
-                    print("        ");
-                    print(String.format(fmt, file.getName()));
-                    print(String.valueOf(file.size()));
+                    print("No such file or directory");
                 }
                 print("\n");
             }
-        } catch (IOException e) {
-            print(e.getMessage());
-        }
-    }
+        });
 
-    @Command(name = {"create"})
-    private void create(String args) {
-        FilePath filePath = getFilePath(args);
-        try {
-            filePath.create();
-        } catch (IOException e) {
-            print(e.getMessage());
-        }
-    }
-
-    @Command(name = {"delete", "del"})
-    private void delete(String args) {
-        FilePath filePath = getFilePath(args);
-        try {
-            filePath.delete();
-        } catch (IOException e) {
-            print(e.getMessage());
-        }
-    }
-
-    @Command(name = {"type"})
-    private void type(String args) {
-        FilePath filePath = getFilePath(args);
-        if (filePath.exists()) {
-            try (emuos.diskmanager.InputStream is = new emuos.diskmanager.InputStream(filePath)) {
-                print(FileSystem.convertStreamToString(is));
-            } catch (IOException e) {
-                print(e.getMessage());
+        registerCommandHandler(new Command("copy", "cp") {
+            @Override
+            public void execute(String args) {
+                print("command not implemented");
             }
-        } else {
-            print("No such file or directory");
-        }
-        print("\n");
-    }
+        });
 
-    @Command(name = {"copy", "cp"})
-    private void copy(String args) {
-        print("command not implemented");
-    }
+        registerCommandHandler(new Command("mkdir", "md") {
+            @Override
+            public void execute(String args) {
+                FilePath filePath = getFilePath(args);
+                try {
+                    filePath.mkdir();
+                } catch (IOException e) {
+                    print(e.getMessage());
+                }
+            }
+        });
 
-    @Command(name = {"mkdir", "md"})
-    private void mkdir(String args) {
-        FilePath filePath = getFilePath(args);
-        try {
-            filePath.mkdir();
-        } catch (IOException e) {
-            print(e.getMessage());
-        }
-    }
+        registerCommandHandler(new Command("rmdir", "rm") {
+            @Override
+            public void execute(String args) {
+                FilePath filePath = getFilePath(args);
+                try {
+                    filePath.delete();
+                } catch (IOException e) {
+                    print(e.getMessage());
+                }
+            }
+        });
 
-    @Command(name = {"rmdir", "rm"})
-    private void rmdir(String args) {
-        FilePath filePath = getFilePath(args);
-        try {
-            filePath.delete();
-        } catch (IOException e) {
-            print(e.getMessage());
-        }
-    }
+        registerCommandHandler(new Command("chdir", "cd") {
+            @Override
+            public void execute(String args) {
+                switch (args) {
+                    case "":
+                        break;
+                    case ".":
+                        break;
+                    case "..":
+                        workingDirectory = workingDirectory.getParentFile();
+                        break;
+                    default:
+                        FilePath file = getFilePath(args);
+                        try {
+                            if (!file.isDir()) {
+                                print("Not a directory");
+                            } else {
+                                workingDirectory = file;
+                            }
+                        } catch (FileNotFoundException e) {
+                            print("No such file or directory");
+                        }
+                        break;
+                }
+            }
+        });
 
-    @Command(name = {"chdir", "cd"})
-    private void chdir(String args) {
-        switch (args) {
-            case "":
-                break;
-            case ".":
-                break;
-            case "..":
-                workingDirectory = workingDirectory.getParentFile();
-                break;
-            default:
+        registerCommandHandler(new Command("move", "mv") {
+            @Override
+            public void execute(String args) {
+                print("command not implemented");
+            }
+        });
+
+        registerCommandHandler(new Command("hex") {
+            @Override
+            public void execute(String args) {
+                if (args.isEmpty()) {
+                    print("Usage: hex [file]");
+                    return;
+                }
+                FilePath filePath = getFilePath(args);
+                if (filePath.exists()) {
+                    try (emuos.diskmanager.InputStream is = new emuos.diskmanager.InputStream(filePath)) {
+                        StringBuilder stringBuilder = new StringBuilder(filePath.size());
+                        stringBuilder.append("   ");
+                        for (int i = 0; i < 16; ++i) {
+                            stringBuilder.append(String.format("%02X", i));
+                            stringBuilder.append(' ');
+                        }
+                        stringBuilder.append('\n');
+                        int b;
+                        int count = 0;
+                        int lineCount = 0;
+                        while ((b = is.read()) != -1) {
+                            if (count == 0) {
+                                stringBuilder.append(String.format("%02X ", lineCount++));
+                            }
+                            stringBuilder.append(String.format("%02X", b));
+                            stringBuilder.append(' ');
+                            if (++count == 16) {
+                                count = 0;
+                                stringBuilder.append('\n');
+                            }
+                        }
+                        print(stringBuilder.toString());
+                    } catch (IOException e) {
+                        print(e.getMessage());
+                    }
+                } else {
+                    print(filePath.getPath() + ": No such file");
+                }
+            }
+        });
+
+        registerCommandHandler(new Command("format") {
+            @Override
+            public void execute(String args) {
+                FileSystem.getFileSystem().init();
+                print("Finished!");
+            }
+        });
+
+        registerCommandHandler(new Command("exec") {
+            @Override
+            public void execute(String args) {
+                if (args.isEmpty()) {
+                    print("Usage: exec [file]");
+                    return;
+                }
                 FilePath file = getFilePath(args);
                 try {
-                    if (!file.isDir()) {
-                        print("Not a directory");
-                    } else {
-                        workingDirectory = file;
+                    ProcessControlBlock pcb = cpu.getProcessManager().create(file);
+                    synchronized (waitingQueue) {
+                        waitingQueue.add(pcb);
                     }
-                } catch (FileNotFoundException e) {
-                    print("No such file or directory");
-                }
-                break;
-        }
-    }
-
-    @Command(name = {"move", "mv"})
-    private void move(String args) {
-        print("command not implemented");
-    }
-
-    @Command(name = {"hex"})
-    private void showHex(String args) {
-        if (args.isEmpty()) {
-            print("Usage: hex [file]");
-            return;
-        }
-        FilePath filePath = getFilePath(args);
-        if (filePath.exists()) {
-            try (emuos.diskmanager.InputStream is = new emuos.diskmanager.InputStream(filePath)) {
-                StringBuilder stringBuilder = new StringBuilder(filePath.size());
-                stringBuilder.append("   ");
-                for (int i = 0; i < 16; ++i) {
-                    stringBuilder.append(String.format("%02X", i));
-                    stringBuilder.append(' ');
-                }
-                stringBuilder.append('\n');
-                int b;
-                int count = 0;
-                int lineCount = 0;
-                while ((b = is.read()) != -1) {
-                    if (count == 0) {
-                        stringBuilder.append(String.format("%02X ", lineCount++));
+                    state = State.WAITING;
+                    waitProcessHandler.handle();
+                    synchronized (processWaiter) {
+                        try {
+                            processWaiter.wait();
+                        } catch (InterruptedException e) {
+                            e.printStackTrace();
+                        }
                     }
-                    stringBuilder.append(String.format("%02X", b));
-                    stringBuilder.append(' ');
-                    if (++count == 16) {
-                        count = 0;
-                        stringBuilder.append('\n');
+                    wakeProcessHandler.handle();
+                    state = State.RUNNING;
+                    int exitCode = pcb.getCPUState().getAX();
+                    if (exitCode != 0) {
+                        print("Process (PID: "
+                                + pcb.getPID()
+                                + ") exited with code: "
+                                + exitCode
+                                + "\n");
                     }
-                }
-                print(stringBuilder.toString());
-            } catch (IOException e) {
-                print(e.getMessage());
-            }
-        } else {
-            print(filePath.getPath() + ": No such file");
-        }
-    }
-
-    @Command(name = {"format"})
-    private void format(String args) {
-        FileSystem.getFileSystem().init();
-        print("Finished!");
-    }
-
-    @Command(name = {"exec"})
-    private void exec(String args) {
-        if (args.isEmpty()) {
-            print("Usage: exec [file]");
-            return;
-        }
-        FilePath file = getFilePath(args);
-        try {
-            ProcessControlBlock pcb = cpu.getProcessManager().create(file);
-            synchronized (waitingQueue) {
-                waitingQueue.add(pcb);
-            }
-            state = State.WAITING;
-            waitProcessHandler.handle();
-            synchronized (processWaiter) {
-                try {
-                    processWaiter.wait();
-                } catch (InterruptedException e) {
+                } catch (IOException e) {
+                    print(e.getMessage());
                     e.printStackTrace();
                 }
             }
-            wakeProcessHandler.handle();
-            state = State.RUNNING;
-            int exitCode = pcb.getCPUState().getAX();
-            if (exitCode != 0) {
-                print("Process (PID: "
-                        + pcb.getPID()
-                        + ") exited with code: "
-                        + exitCode
-                        + "\n");
+        });
+
+        registerCommandHandler(new Command("help") {
+            @Override
+            public void execute(String args) {
+                print("Support commands: \n");
+                for (String key : commandMap.keySet()) {
+                    print(" " + key + "\n");
+                }
             }
-        } catch (IOException e) {
-            print(e.getMessage());
-            e.printStackTrace();
-        }
-    }
+        });
 
-    @Command(name = {"help"})
-    private void showHelp(String args) {
-        print("Support commands: \n");
-        for (String key : commandMap.keySet()) {
-            print(" " + key + "\n");
-        }
-    }
+        registerCommandHandler(new Command("exit") {
+            @Override
+            public void execute(String args) {
+                exitHandler.handle();
+            }
+        });
 
-    @Command(name = {"exit"})
-    private void exit(String args) {
-        exitHandler.handle();
-    }
-
-    @Command(name = {"diskstat"})
-    private void showDiskStat(String args) {
-        StringBuilder stringBuilder = new StringBuilder();
-        FileSystem fs = FileSystem.getFileSystem();
-        for (int i = 0; i < 64 * 2; ++i) {
-            stringBuilder.append(String.format("%4d ", fs.read(i)));
-            if (i % 8 == 7) {
+        registerCommandHandler(new Command("diskstat") {
+            @Override
+            public void execute(String args) {
+                StringBuilder stringBuilder = new StringBuilder();
+                FileSystem fs = FileSystem.getFileSystem();
+                for (int i = 0; i < 64 * 2; ++i) {
+                    stringBuilder.append(String.format("%4d ", fs.read(i)));
+                    if (i % 8 == 7) {
+                        stringBuilder.append('\n');
+                    }
+                }
                 stringBuilder.append('\n');
+                print(stringBuilder.toString());
             }
+        });
+
+        registerCommandHandler(new Command("clear") {
+            @Override
+            public void execute(String args) {
+                clearHandler.handle();
+            }
+        });
+    }
+
+    public void registerCommandHandler(Command command) {
+        for (String name : command.names()) {
+            commandMap.put(name, command);
         }
-        stringBuilder.append('\n');
-        print(stringBuilder.toString());
     }
 
-    @Command(name = {"clear"})
-    private void clearScreen(String args) {
-        clearHandler.handle();
+    public Command getCommandHandler(String name) {
+        return commandMap.get(name);
     }
-
+    
     private enum State {
         RUNNING,
         WAITING,
