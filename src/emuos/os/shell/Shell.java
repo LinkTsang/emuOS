@@ -436,7 +436,7 @@ public class Shell {
     public Command getCommandHandler(String name) {
         return commandMap.get(name);
     }
-    
+
     private enum State {
         RUNNING,
         WAITING,
@@ -486,6 +486,18 @@ public class Shell {
         public void write(int b) {
             dirty = true;
             super.write(b);
+        }
+
+        @Override
+        public void write(byte[] b) throws IOException {
+            dirty = true;
+            super.write(b);
+        }
+
+        @Override
+        public void write(byte[] buf, int off, int len) {
+            dirty = true;
+            super.write(buf, off, len);
         }
     }
 }
