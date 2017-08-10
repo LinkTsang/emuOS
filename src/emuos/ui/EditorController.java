@@ -20,7 +20,7 @@ import java.net.URL;
 import java.util.ResourceBundle;
 
 /**
- * Created by Link on 2017/7/15.
+ * @author Link
  */
 public class EditorController implements Initializable {
 
@@ -28,8 +28,16 @@ public class EditorController implements Initializable {
     private Label messageLabel;
     @FXML
     private TextArea textArea;
-    private TerminalController terminalController;
     private FilePath filePath;
+    private Handler exitHandler = Handler.NULL;
+
+    public Handler getExitHandler() {
+        return exitHandler;
+    }
+
+    public void setExitHandler(Handler exitHandler) {
+        this.exitHandler = exitHandler;
+    }
 
     /**
      * Initializes the controller class.
@@ -38,17 +46,12 @@ public class EditorController implements Initializable {
     public void initialize(URL url, ResourceBundle rb) {
     }
 
-    public void setTerminal(TerminalController controller) {
-        terminalController = controller;
-    }
-
     public void setFilePath(FilePath filePath) {
         this.filePath = filePath;
         try (InputStream is = new InputStream(filePath)) {
             textArea.setText(FileSystem.convertStreamToString(is));
         } catch (IOException e) {
-            terminalController.print(e.getMessage());
-            terminalController.handleShellExit();
+            exitHandler.handle(e.getMessage());
         }
     }
 
@@ -64,9 +67,10 @@ public class EditorController implements Initializable {
 
     @FXML
     public void handleExitAction(ActionEvent actionEvent) {
-        terminalController.handleShellExit();
+        exitHandler.handle(null);
     }
 
+    @FXML
     public void handleCompileAction(ActionEvent actionEvent) {
         String filename = filePath.getName();
         int index = filename.lastIndexOf(".");
@@ -100,5 +104,12 @@ public class EditorController implements Initializable {
             return;
         }
         messageLabel.setText("Complied!");
+    }
+
+    public interface Handler {
+        public static final Handler NULL = ignore -> {
+        };
+
+        void handle(String message);
     }
 }

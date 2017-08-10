@@ -20,17 +20,13 @@ import java.io.IOException;
 public class MainWindow extends Application {
 
     public final static String WINDOW_TITLE = "emuOS";
-    private final CentralProcessingUnit cpu = new CentralProcessingUnit();
+    private final CentralProcessingUnit kernel = new CentralProcessingUnit();
 
     /**
      * @param args the command line arguments
      */
     public static void main(String[] args) {
         launch(args);
-    }
-
-    public CentralProcessingUnit getKernel() {
-        return cpu;
     }
 
     @Override
@@ -43,11 +39,11 @@ public class MainWindow extends Application {
         primaryStage.setScene(scene);
         TerminalController terminalController = terminalLoader.getController();
         terminalController.setStage(primaryStage);
-        terminalController.setMainWindow(this);
+        terminalController.initShell(kernel);
         primaryStage.show();
     }
 
-    void loadKernel() {
-        cpu.run();
+    private void loadKernel() {
+        kernel.run();
     }
 }
