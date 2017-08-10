@@ -37,6 +37,7 @@ public class TerminalController implements Initializable {
     private Parent itsRoot;
     private int lastPromptPosition = 0;
     private Shell shell;
+    private Thread shellThread;
 
     /**
      * Initializes the controller class.
@@ -57,7 +58,16 @@ public class TerminalController implements Initializable {
 
     public void setStage(Stage stage) {
         this.stage = stage;
+        stage.setOnCloseRequest(event -> handleAppClose());
         itsRoot = stage.getScene().getRoot();
+    }
+
+    private void handleAppClose() {
+        if (shellThread.isAlive()) {
+            shell.stop();
+            shellThread.interrupt();
+        }
+        stage.close();
     }
 
     @FXML
@@ -116,7 +126,7 @@ public class TerminalController implements Initializable {
         ));
         shell.setExitHandler(() -> {
             shell.stop();
-            Platform.runLater(stage::close);
+            Platform.runLater(this::handleAppClose);
         });
         shell.registerCommandHandler(new Command("edit") {
             @Override
@@ -147,7 +157,7 @@ public class TerminalController implements Initializable {
                 });
             }
         });
-        Thread shellThread = new Thread(shell::run);
+        shellThread = new Thread(shell::run);
         shellThread.start();
     }
 
@@ -167,7 +177,6 @@ public class TerminalController implements Initializable {
                 }
                 return value;
             } catch (InterruptedException e) {
-                e.printStackTrace();
                 Thread.currentThread().interrupt();
             }
             return -1;
