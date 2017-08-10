@@ -98,7 +98,7 @@ public class Shell {
     public Handler getClearHandler() {
         return clearHandler;
     }
-    
+
     public void setClearHandler(Handler clearHandler) {
         this.clearHandler = clearHandler;
     }
@@ -378,7 +378,7 @@ public class Shell {
                     e.printStackTrace();
                 }
             }
-            waitProcessHandler.handle();
+            wakeProcessHandler.handle();
             state = State.RUNNING;
             int exitCode = pcb.getCPUState().getAX();
             if (exitCode != 0) {
