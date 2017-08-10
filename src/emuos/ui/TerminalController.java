@@ -1,10 +1,14 @@
 package emuos.ui;
 
+import emuos.diskmanager.FilePath;
 import emuos.os.CentralProcessingUnit;
+import emuos.os.shell.Command;
 import emuos.os.shell.Shell;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
+import javafx.fxml.FXMLLoader;
 import javafx.fxml.Initializable;
+import javafx.scene.Parent;
 import javafx.scene.control.TextArea;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
@@ -19,6 +23,8 @@ import java.util.ResourceBundle;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingDeque;
 
+import static emuos.ui.MainWindow.WINDOW_TITLE;
+
 /**
  * @author Link
  */
@@ -30,6 +36,7 @@ public class TerminalController implements Initializable {
     @FXML
     private TextArea inputArea;
     private Stage stage;
+    private Parent itsRoot;
     private int lastPromptPosition = 0;
     private Shell shell;
 
@@ -52,6 +59,7 @@ public class TerminalController implements Initializable {
 
     public void setStage(Stage stage) {
         this.stage = stage;
+        itsRoot = stage.getScene().getRoot();
     }
 
     @FXML
@@ -113,6 +121,35 @@ public class TerminalController implements Initializable {
         shell.setExitHandler(() -> {
             shell.stop();
             Platform.runLater(stage::close);
+        });
+        shell.registerCommandHandler(new Command("edit") {
+            @Override
+            public void execute(String args) {
+                Platform.runLater(() -> {
+                    FilePath filePath = shell.getFilePath(args);
+                    if (filePath.exists()) {
+                        try {
+                            FXMLLoader editorLoader = new FXMLLoader(getClass().getResource("Editor.fxml"));
+                            Parent root = editorLoader.load();
+                            EditorController editorController = editorLoader.getController();
+                            editorController.setFilePath(filePath);
+                            editorController.setExitHandler(message -> {
+                                if (message != null) {
+                                    print(message + "\n");
+                                }
+                                stage.getScene().setRoot(itsRoot);
+                                stage.setTitle(WINDOW_TITLE);
+                            });
+                            stage.getScene().setRoot(root);
+                        } catch (IOException e) {
+                            print(e.getMessage());
+                            e.printStackTrace();
+                        }
+                    } else {
+                        print(filePath.getPath() + ": No such file\n");
+                    }
+                });
+            }
         });
         Thread shellThread = new Thread(shell::run);
         shellThread.start();
