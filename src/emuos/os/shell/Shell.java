@@ -395,6 +395,22 @@ public class Shell {
             }
         });
 
+        registerCommandHandler(new Command("bg") {
+            @Override
+            public void execute(String args) {
+                if (args.isEmpty()) {
+                    print("Usage: bg [file]");
+                    return;
+                }
+                FilePath file = getFilePath(args);
+                try {
+                    kernel.getProcessManager().create(file);
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+        });
+
         registerCommandHandler(new Command("help") {
             @Override
             public void execute(String args) {
