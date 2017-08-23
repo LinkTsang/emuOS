@@ -5,6 +5,8 @@
  */
 package emuos.os;
 
+import emuos.diskmanager.FilePath;
+
 /**
  * @author Link
  */
@@ -14,13 +16,23 @@ public class ProcessControlBlock {
     private final int startAddress;
     private CentralProcessingUnit.State CPUState;
     private ProcessState state;
+    private FilePath imageFile;
 
     public ProcessControlBlock(int PID, int startAddress) {
+        this(PID, startAddress, FilePath.NULL);
+    }
+
+    public ProcessControlBlock(int PID, int startAddress, FilePath imageFile) {
         this.PID = PID;
         this.startAddress = startAddress;
+        this.imageFile = imageFile;
         state = ProcessState.READY;
         CPUState = new CentralProcessingUnit.State();
         CPUState.setPC(startAddress);
+    }
+
+    public FilePath getImageFile() {
+        return imageFile;
     }
 
     /**
@@ -82,6 +94,7 @@ public class ProcessControlBlock {
                 "PID=" + PID +
                 ", startAddress=" + startAddress +
                 ", state=" + state +
+                ", imageFile=" + imageFile.getPath() +
                 '}';
     }
 

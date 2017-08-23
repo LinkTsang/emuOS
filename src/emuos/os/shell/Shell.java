@@ -380,11 +380,13 @@ public class Shell {
                     state = State.RUNNING;
                     int exitCode = pcb.getCPUState().getAX();
                     if (exitCode != 0) {
-                        print("Process (PID: "
+                        print("Process ("
+                                + "PID: "
                                 + pcb.getPID()
+                                + ", Path: "
+                                + pcb.getImageFile().getPath()
                                 + ") exited with code: "
-                                + exitCode
-                                + "\n");
+                                + exitCode);
                     }
                 } catch (IOException e) {
                     print(e.getMessage());

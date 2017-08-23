@@ -51,7 +51,7 @@ public class ProcessManager {
             }
         }
 
-        ProcessControlBlock PCB = new ProcessControlBlock(nextPID++, address);
+        ProcessControlBlock PCB = new ProcessControlBlock(nextPID++, address, imageFile);
         if (!memoryManager.addPCB(PCB)) {
             memoryManager.free(address);
             throw new RuntimeException("There is not enough PCB spaces for the new process.");
