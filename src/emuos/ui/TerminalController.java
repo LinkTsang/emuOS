@@ -98,6 +98,7 @@ public class TerminalController implements Initializable {
                 if (shell.isWaiting()) {
                     break;
                 }
+                inputArea.positionCaret(inputArea.getLength());
                 final String promptString = shell.getPromptString();
                 String content = inputArea.getText();
                 String inputLine = content.substring(content.lastIndexOf('\n') + 1);
