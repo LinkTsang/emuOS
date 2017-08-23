@@ -31,18 +31,18 @@ public class ProcessManager {
         this.memoryManager = memoryManager;
     }
 
-    public ProcessControlBlock create(String path) throws IOException {
+    public ProcessControlBlock create(String path) throws IOException, ProcessException {
         FilePath imageFile = new FilePath(path);
         return create(imageFile);
     }
 
-    public synchronized ProcessControlBlock create(FilePath imageFile) throws IOException {
+    public synchronized ProcessControlBlock create(FilePath imageFile) throws IOException, ProcessException {
         if (!imageFile.exists() || !imageFile.isFile()) return null;
         int imageSize = imageFile.size();
 
         int address = memoryManager.alloc(imageSize);
-        if (address < -1) {
-            throw new RuntimeException("There is not enough memory to allocate for the new process.");
+        if (address < 0) {
+            throw new ProcessException("There is not enough memory to allocate for the new process.");
         }
 
         try (InputStream inputStream = new InputStream(imageFile)) {
@@ -55,7 +55,7 @@ public class ProcessManager {
         ProcessControlBlock PCB = new ProcessControlBlock(nextPID++, address, imageFile);
         if (!memoryManager.addPCB(PCB)) {
             memoryManager.free(address);
-            throw new RuntimeException("There is not enough PCB spaces for the new process.");
+            throw new ProcessException("There is not enough PCB spaces for the new process.");
         }
         getReadyQueue().add(PCB);
         return PCB;
@@ -190,6 +190,13 @@ public class ProcessManager {
 
         public void setStatus(String status) {
             this.status = ProcessState.valueOf(status);
+        }
+    }
+
+    public class ProcessException extends Exception {
+
+        public ProcessException(String message) {
+            super(message);
         }
     }
 }

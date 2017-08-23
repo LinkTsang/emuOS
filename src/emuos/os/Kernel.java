@@ -42,7 +42,7 @@ public class Kernel {
         deviceManager.setFinishedHandler(deviceInfo -> runnableQueue.add(() -> context.setIntIO()));
     }
 
-    public static void main(String[] args) throws InterruptedException, IOException {
+    public static void main(String[] args) throws InterruptedException, IOException, ProcessManager.ProcessException {
         Kernel kernel = new Kernel();
         final boolean[] lastNullPCB = {false};
         kernel.setStepFinishedListener((k -> {

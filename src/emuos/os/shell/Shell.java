@@ -4,6 +4,7 @@ import emuos.diskmanager.FilePath;
 import emuos.diskmanager.FileSystem;
 import emuos.os.Kernel;
 import emuos.os.ProcessControlBlock;
+import emuos.os.ProcessManager;
 
 import java.io.*;
 import java.util.*;
@@ -388,7 +389,7 @@ public class Shell {
                                 + ") exited with code: "
                                 + exitCode);
                     }
-                } catch (IOException e) {
+                } catch (IOException | ProcessManager.ProcessException e) {
                     print(e.getMessage());
                     e.printStackTrace();
                 }
@@ -405,7 +406,8 @@ public class Shell {
                 FilePath file = getFilePath(args);
                 try {
                     kernel.getProcessManager().create(file);
-                } catch (IOException e) {
+                } catch (IOException | ProcessManager.ProcessException e) {
+                    print(e.getMessage());
                     e.printStackTrace();
                 }
             }
