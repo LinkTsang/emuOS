@@ -7,6 +7,8 @@ package emuos.os;
 
 import emuos.diskmanager.FilePath;
 
+import static emuos.os.Kernel.Context;
+
 /**
  * @author Link
  */
@@ -14,7 +16,7 @@ public class ProcessControlBlock {
 
     private final int PID;
     private final int startAddress;
-    private CentralProcessingUnit.State CPUState;
+    private Context context;
     private ProcessState state;
     private FilePath imageFile;
 
@@ -27,8 +29,8 @@ public class ProcessControlBlock {
         this.startAddress = startAddress;
         this.imageFile = imageFile;
         state = ProcessState.READY;
-        CPUState = new CentralProcessingUnit.State();
-        CPUState.setPC(startAddress);
+        context = new Context();
+        context.setPC(startAddress);
     }
 
     public FilePath getImageFile() {
@@ -42,9 +44,9 @@ public class ProcessControlBlock {
         return PID;
     }
 
-    public void saveCPUState(CentralProcessingUnit.State state) {
+    public void saveContext(Context context) {
         try {
-            CPUState = (CentralProcessingUnit.State) state.clone();
+            this.context = (Context) context.clone();
         } catch (CloneNotSupportedException e) {
             e.printStackTrace();
         }
@@ -84,8 +86,8 @@ public class ProcessControlBlock {
         return startAddress;
     }
 
-    public CentralProcessingUnit.State getCPUState() {
-        return CPUState;
+    public Context getContext() {
+        return context;
     }
 
     @Override

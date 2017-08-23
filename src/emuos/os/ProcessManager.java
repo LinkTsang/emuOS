@@ -20,13 +20,13 @@ public class ProcessManager {
 
     private final BlockingQueue<ProcessControlBlock> blockedQueue = new LinkedBlockingQueue<>();
     private final BlockingQueue<ProcessControlBlock> readyQueue = new LinkedBlockingQueue<>();
-    private final CentralProcessingUnit cpu;
+    private final Kernel kernel;
     private final MemoryManager memoryManager;
     private ProcessControlBlock runningProcess;
     private int nextPID = 1;
 
-    public ProcessManager(CentralProcessingUnit cpu, MemoryManager memoryManager) {
-        this.cpu = cpu;
+    public ProcessManager(Kernel kernel, MemoryManager memoryManager) {
+        this.kernel = kernel;
         this.memoryManager = memoryManager;
     }
 
@@ -80,7 +80,7 @@ public class ProcessManager {
         if (PCB.equals(runningProcess)) {
             assert PCB.getState() == ProcessState.RUNNING;
             PCB.setState(ProcessState.BLOCKED);
-            PCB.saveCPUState(cpu.getState());
+            PCB.saveContext(kernel.getContext());
             getBlockedQueue().add(PCB);
             runningProcess = null;
             schedule();
@@ -105,15 +105,15 @@ public class ProcessManager {
 
     public synchronized void schedule() {
         if (runningProcess != null) {
-            runningProcess.saveCPUState(cpu.getState());
+            runningProcess.saveContext(kernel.getContext());
             runningProcess.setState(ProcessState.READY);
             readyQueue.add(runningProcess);
         }
         runningProcess = readyQueue.poll();
-        cpu.resetTimeSlice();
+        kernel.resetTimeSlice();
         if (runningProcess != null) {
             runningProcess.setState(ProcessState.RUNNING);
-            cpu.setState(runningProcess.getCPUState());
+            kernel.setContext(runningProcess.getContext());
         }
     }
 

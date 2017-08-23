@@ -20,15 +20,15 @@ import static emuos.compiler.Instruction.*;
 /**
  * @author Link
  */
-public class CentralProcessingUnit {
+public class Kernel {
     private static final long CPU_PERIOD_MS = 100;
     private static final int INIT_TIME_SLICE = 6;
-    private static final Logger LOGGER = Logger.getLogger("cpu.log");
+    private static final Logger LOGGER = Logger.getLogger("kernel.log");
     private final DeviceManager deviceManager = new DeviceManager();
     private final MemoryManager memoryManager = new MemoryManager();
     private final ProcessManager processManager = new ProcessManager(this, memoryManager);
     private final Timer timer = new Timer(true);
-    private volatile State state = new State();
+    private volatile Context context = new Context();
     private int time;
     private int timeSlice = 1;
     private Listener beforeStepListener;
@@ -37,36 +37,37 @@ public class CentralProcessingUnit {
     private Listener intTimeSliceListener;
     private Listener intIOListener;
     private BlockingQueue<Runnable> runnableQueue = new LinkedBlockingDeque<>();
-    public CentralProcessingUnit() {
-        deviceManager.setFinishedHandler(deviceInfo -> runnableQueue.add(() -> state.setIntIO()));
+
+    public Kernel() {
+        deviceManager.setFinishedHandler(deviceInfo -> runnableQueue.add(() -> context.setIntIO()));
     }
 
     public static void main(String[] args) throws InterruptedException, IOException {
-        CentralProcessingUnit CPU = new CentralProcessingUnit();
+        Kernel kernel = new Kernel();
         final boolean[] lastNullPCB = {false};
-        CPU.setStepFinishedListener((cpu -> {
+        kernel.setStepFinishedListener((k -> {
             StringBuilder msg = new StringBuilder("\n");
-            State state = cpu.getState();
-            ProcessControlBlock pcb = cpu.processManager.getRunningProcess();
+            Context context = k.getContext();
+            ProcessControlBlock pcb = k.processManager.getRunningProcess();
             if (pcb == null) {
                 if (!lastNullPCB[0]) {
                     msg.append("==== There is no any running process ====\n");
                     lastNullPCB[0] = true;
-                    CentralProcessingUnit.LOGGER.info(msg.toString());
+                    Kernel.LOGGER.info(msg.toString());
                 }
             } else {
                 lastNullPCB[0] = false;
                 msg.append("===== CPU Stat =====\n");
-                msg.append(String.format("  Current Time : %d\n", cpu.getTime()));
-                msg.append(String.format("  TimeSlice    : %d\n", cpu.getTimeSlice()));
+                msg.append(String.format("  Current Time : %d\n", k.getTime()));
+                msg.append(String.format("  TimeSlice    : %d\n", k.getTimeSlice()));
                 msg.append(String.format("  Current PID  : %d\n", pcb.getPID()));
-                msg.append(String.format("  Current State: %s\n", state.toString()));
+                msg.append(String.format("  Context: %s\n", context.toString()));
                 msg.append("====================\n");
-                CentralProcessingUnit.LOGGER.info(msg.toString());
+                Kernel.LOGGER.info(msg.toString());
             }
         }));
-        CPU.run();
-        ProcessManager processManager = CPU.processManager;
+        kernel.run();
+        ProcessManager processManager = kernel.processManager;
         System.out.println("Creating processes...");
         Thread.sleep(1000);
         // It's required to create the file '/a/a.e'
@@ -74,8 +75,8 @@ public class CentralProcessingUnit {
             processManager.create("/a/a.e");
         }
         System.out.println("Waiting for CPU...");
-        synchronized (CPU) {
-            CPU.wait();
+        synchronized (kernel) {
+            kernel.wait();
         }
     }
 
@@ -109,15 +110,15 @@ public class CentralProcessingUnit {
         return oldListener;
     }
 
-    public State getState() {
-        return state;
+    public Context getContext() {
+        return context;
     }
 
-    public void setState(State state) {
-        this.state.AX = state.AX;
-        this.state.PC = state.PC;
-        this.state.IR = state.IR;
-        this.state.FLAGS = state.FLAGS;
+    public void setContext(Context context) {
+        this.context.AX = context.AX;
+        this.context.PC = context.PC;
+        this.context.IR = context.IR;
+        this.context.FLAGS = context.FLAGS;
     }
 
     public synchronized Listener setStepFinishedListener(Listener listener) {
@@ -134,62 +135,62 @@ public class CentralProcessingUnit {
 
     public void CPU() {
         time++;
-        if (state.isIntEnd()) {
+        if (context.isIntEnd()) {
             interruptEnd();
-            state.clearIntEnd();
+            context.clearIntEnd();
         }
-        if (state.isIntTimeSlice()) {
+        if (context.isIntTimeSlice()) {
             interruptTime();
-            state.clearTimeSlice();
+            context.clearTimeSlice();
         }
-        if (state.isIntIO()) {
+        if (context.isIntIO()) {
             interruptIO();
-            state.clearIntIO();
+            context.clearIntIO();
         }
 
         if (processManager.getRunningProcess() != null) {
-            state.setIR(nextByte());
+            context.setIR(nextByte());
             execute();
             if (--timeSlice <= 0) {
-                state.setIntTimeSlice();
+                context.setIntTimeSlice();
             }
         }
     }
 
     private byte nextByte() {
-        return memoryManager.read(state.PC++);
+        return memoryManager.read(context.PC++);
     }
 
     private void execute() {
-        int opcode = state.getIR();
-        BitSet FLAGS = state.getFLAGS();
+        int opcode = context.getIR();
+        BitSet FLAGS = context.getFLAGS();
         switch (opcode) {
             case OPCODE_END: {
-                state.setIntEnd();
+                context.setIntEnd();
             }
             break;
             case OPCODE_ASSIGNMENT: {
                 int operand = nextByte();
-                state.setAX(operand);
-                if (state.getAX() == 0) {
-                    FLAGS.set(State.PSW_ZF);
+                context.setAX(operand);
+                if (context.getAX() == 0) {
+                    FLAGS.set(Context.PSW_ZF);
                 }
-                if (state.getAX() < 0) {
-                    FLAGS.set(State.PSW_SF);
+                if (context.getAX() < 0) {
+                    FLAGS.set(Context.PSW_SF);
                 }
             }
             break;
             case OPCODE_INCREASE: {
-                state.setAX((state.getAX() + 1) % 0xff);
-                if (state.getAX() == 0) {
-                    FLAGS.set(State.PSW_ZF);
+                context.setAX((context.getAX() + 1) % 0xff);
+                if (context.getAX() == 0) {
+                    FLAGS.set(Context.PSW_ZF);
                 }
             }
             break;
             case OPCODE_DECREASE:
-                state.setAX((state.getAX() - 1) % 0xff);
-                if (state.getAX() == 0) {
-                    FLAGS.set(State.PSW_ZF);
+                context.setAX((context.getAX() - 1) % 0xff);
+                if (context.getAX() == 0) {
+                    FLAGS.set(Context.PSW_ZF);
                 }
                 break;
             case OPCODE_IO: {
@@ -213,9 +214,9 @@ public class CentralProcessingUnit {
         ProcessControlBlock pcb = processManager.getRunningProcess();
         LOGGER.info("\n**** INT END ****\n"
                 + "  PCB  : " + pcb + "\n"
-                + "  State: " + state.toString() + "\n"
+                + "  Context: " + context.toString() + "\n"
                 + "*****************\n");
-        pcb.saveCPUState(state);
+        pcb.saveContext(context);
         if (intEndListener != null) {
             intEndListener.handle(this);
         }
@@ -250,7 +251,7 @@ public class CentralProcessingUnit {
                     processManager.schedule();
                 }
                 if (beforeStepListener != null) {
-                    beforeStepListener.handle(CentralProcessingUnit.this);
+                    beforeStepListener.handle(Kernel.this);
                 }
                 CPU();
                 Runnable runnable;
@@ -288,10 +289,10 @@ public class CentralProcessingUnit {
     }
 
     public interface Listener {
-        void handle(CentralProcessingUnit cpu);
+        void handle(Kernel kernel);
     }
 
-    public static class State implements Cloneable {
+    public static class Context implements Cloneable {
         public static final int PSW_INT_END = 9;
         public static final int PSW_INT_TIME_SLICE = 8;
         public static final int PSW_INT_IO = 7;
@@ -305,20 +306,20 @@ public class CentralProcessingUnit {
         private int IR;         // last Instruction
         private int PC;         // next PC
 
-        public State() {
+        public Context() {
         }
 
         @Override
         protected Object clone() throws CloneNotSupportedException {
-            State state = (State) super.clone();
-            state.PSW = (BitSet) PSW.clone();
-            return state;
+            Context context = (Context) super.clone();
+            context.PSW = (BitSet) PSW.clone();
+            return context;
         }
 
         @Override
         public String toString() {
             StringBuilder stringBuilder = new StringBuilder();
-            stringBuilder.append("State { ")
+            stringBuilder.append("Context { ")
                     .append("AX=").append(AX)
                     .append(", PC=").append(PC)
                     .append(", IR=").append(Instruction.getName(IR));

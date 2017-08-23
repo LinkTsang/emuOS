@@ -5,7 +5,7 @@
  */
 package emuos.ui;
 
-import emuos.os.CentralProcessingUnit;
+import emuos.os.Kernel;
 import javafx.application.Application;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
@@ -20,7 +20,7 @@ import java.io.IOException;
 public class MainWindow extends Application {
 
     public final static String WINDOW_TITLE = "emuOS";
-    private final CentralProcessingUnit kernel = new CentralProcessingUnit();
+    private final Kernel kernel = new Kernel();
 
     /**
      * @param args the command line arguments

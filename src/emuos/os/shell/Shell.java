@@ -2,7 +2,7 @@ package emuos.os.shell;
 
 import emuos.diskmanager.FilePath;
 import emuos.diskmanager.FileSystem;
-import emuos.os.CentralProcessingUnit;
+import emuos.os.Kernel;
 import emuos.os.ProcessControlBlock;
 
 import java.io.*;
@@ -20,7 +20,7 @@ public class Shell {
     private final CommandHistory commandHistory = new CommandHistory();
     private Map<String, Command> commandMap = new HashMap<>();
     private FilePath workingDirectory = new FilePath("/");
-    private CentralProcessingUnit cpu;
+    private Kernel kernel;
     private Handler exitHandler = Handler.NULL;
     private Handler clearHandler = Handler.NULL;
     private Handler waitInputHandler = Handler.NULL;
@@ -28,9 +28,9 @@ public class Shell {
     private Handler wakeProcessHandler = Handler.NULL;
     private State state = State.STOPPED;
 
-    public Shell(CentralProcessingUnit cpu, InputStream in, OutputStream out) {
-        this.cpu = cpu;
-        cpu.setIntEndListener(c -> {
+    public Shell(Kernel kernel, InputStream in, OutputStream out) {
+        this.kernel = kernel;
+        kernel.setIntEndListener(c -> {
             final ProcessControlBlock pcb = c.getProcessManager().getRunningProcess();
             synchronized (waitingQueue) {
                 if (waitingQueue.remove(pcb)) {
@@ -47,9 +47,9 @@ public class Shell {
 
     public static void main(String[] args) {
         System.out.println(Command.class.getCanonicalName());
-        CentralProcessingUnit cpu = new CentralProcessingUnit();
-        cpu.run();
-        Shell shell = new Shell(cpu, System.in, System.out);
+        Kernel kernel = new Kernel();
+        kernel.run();
+        Shell shell = new Shell(kernel, System.in, System.out);
         shell.setExitHandler(shell::stop);
         shell.run();
     }
@@ -363,7 +363,7 @@ public class Shell {
                 }
                 FilePath file = getFilePath(args);
                 try {
-                    ProcessControlBlock pcb = cpu.getProcessManager().create(file);
+                    ProcessControlBlock pcb = kernel.getProcessManager().create(file);
                     synchronized (waitingQueue) {
                         waitingQueue.add(pcb);
                     }
@@ -378,7 +378,7 @@ public class Shell {
                     }
                     wakeProcessHandler.handle();
                     state = State.RUNNING;
-                    int exitCode = pcb.getCPUState().getAX();
+                    int exitCode = pcb.getContext().getAX();
                     if (exitCode != 0) {
                         print("Process ("
                                 + "PID: "

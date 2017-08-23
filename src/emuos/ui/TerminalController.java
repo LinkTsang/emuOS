@@ -1,7 +1,7 @@
 package emuos.ui;
 
 import emuos.diskmanager.FilePath;
-import emuos.os.CentralProcessingUnit;
+import emuos.os.Kernel;
 import emuos.os.shell.Command;
 import emuos.os.shell.CommandHistory;
 import emuos.os.shell.Shell;
@@ -111,7 +111,7 @@ public class TerminalController implements Initializable {
         }
     }
 
-    public void initShell(CentralProcessingUnit kernel) {
+    public void initShell(Kernel kernel) {
         shell = new Shell(kernel, eis, eos);
         shell.setWaitInputHandler(() -> Platform.runLater(() ->
                 lastPromptPosition = inputArea.getLength()
