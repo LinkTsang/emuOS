@@ -14,6 +14,7 @@ import java.io.IOException;
 public class FilePath {
 
     public static final String separatorChar = "/";
+    public static final FilePath NULL = new FilePath("");
     private final String path;
     private FileSystem fs = FileSystem.getFileSystem();
 
