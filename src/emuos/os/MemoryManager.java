@@ -129,6 +129,15 @@ public class MemoryManager {
         return false;
     }
 
+    public int getSpaceSize(int address) {
+        for (Space s : allocatedSpaces) {
+            if (s.startAddress == address) {
+                return s.size;
+            }
+        }
+        return -1;
+    }
+
     public enum AllocationMethod {
         FirstFit,
         NextFit,
