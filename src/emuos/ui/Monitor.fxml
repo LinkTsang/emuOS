@@ -1,7 +1,95 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<?import javafx.scene.layout.AnchorPane?>
-<AnchorPane xmlns:fx="http://javafx.com/fxml/1" id="AnchorPane" prefHeight="400.0" prefWidth="600.0"
-            fx:controller="emuos.ui.MonitorController">
-
+<?import javafx.scene.canvas.Canvas?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<AnchorPane xmlns:fx="http://javafx.com/fxml/1" id="AnchorPane" prefHeight="453.0" prefWidth="674.0"
+            xmlns="http://javafx.com/javafx/8" fx:controller="emuos.ui.MonitorController">
+    <children>
+        <TabPane fx:id="tabPane" layoutX="38.0" layoutY="35.0" prefHeight="200.0" prefWidth="200.0"
+                 tabClosingPolicy="UNAVAILABLE" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0"
+                 AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
+            <tabs>
+                <Tab fx:id="processesTab" onSelectionChanged="#handleProcessesTabSelectionChanged" text="Processes">
+                    <content>
+                        <AnchorPane minHeight="0.0" minWidth="0.0" prefHeight="180.0" prefWidth="200.0">
+                            <children>
+                                <TableView fx:id="processesTable" prefHeight="200.0" prefWidth="200.0"
+                                           AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0"
+                                           AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
+                                    <placeholder>
+                                        <Label text="No processes"/>
+                                    </placeholder>
+                                    <columns>
+                                        <TableColumn fx:id="processPIDCol" prefWidth="75.0" text="PID"/>
+                                        <TableColumn fx:id="processPathCol" prefWidth="160.0" text="Path"/>
+                                        <TableColumn fx:id="processStatusCol" prefWidth="85.0" text="Status"/>
+                                        <TableColumn fx:id="processMemoryCol" prefWidth="194.0" text="Memory"/>
+                                        <TableColumn fx:id="processPCCol" prefWidth="75.0" text="PC"/>
+                                    </columns>
+                                </TableView>
+                            </children>
+                        </AnchorPane>
+                    </content>
+                </Tab>
+                <Tab fx:id="devicesTab" onSelectionChanged="#handleDevicesTabSelectionChanged" text="Devices">
+                    <content>
+                        <AnchorPane minHeight="0.0" minWidth="0.0" prefHeight="180.0" prefWidth="200.0">
+                            <children>
+                                <TableView fx:id="devicesTable" prefHeight="200.0" prefWidth="200.0"
+                                           AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0"
+                                           AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
+                                    <placeholder>
+                                        <Label/>
+                                    </placeholder>
+                                    <columns>
+                                        <TableColumn fx:id="deviceIDCol" prefWidth="75.0" text="ID"/>
+                                        <TableColumn fx:id="deviceStatusCol" prefWidth="75.0" text="Status"/>
+                                        <TableColumn fx:id="devicePIDCol" prefWidth="75.0" text="PID"/>
+                                    </columns>
+                                </TableView>
+                            </children>
+                        </AnchorPane>
+                    </content>
+                </Tab>
+                <Tab fx:id="diskTab" onSelectionChanged="#handleDiskTabSelectionChanged" text="Disk">
+                    <content>
+                        <AnchorPane minHeight="0.0" minWidth="0.0">
+                            <children>
+                                <SplitPane dividerPositions="0.7321428571428571" prefHeight="160.0" prefWidth="200.0"
+                                           AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0"
+                                           AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
+                                    <items>
+                                        <AnchorPane minHeight="0.0" minWidth="0.0" prefHeight="160.0" prefWidth="100.0">
+                                            <children>
+                                                <TreeTableView fx:id="fileTreeTableView" layoutX="57.0" layoutY="34.0"
+                                                               onKeyPressed="#handleFileTreeKeyPressed"
+                                                               onMouseClicked="#handleFileTreeClicked"
+                                                               prefHeight="200.0" prefWidth="200.0"
+                                                               AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0"
+                                                               AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
+                                                    <columns>
+                                                        <TreeTableColumn fx:id="fileNameCol" prefWidth="100.0"
+                                                                         text="Name"/>
+                                                        <TreeTableColumn fx:id="fileSizeCol" prefWidth="75.0"
+                                                                         text="Size"/>
+                                                    </columns>
+                                                </TreeTableView>
+                                            </children>
+                                        </AnchorPane>
+                                        <VBox>
+                                            <children>
+                                                <Label text="File Allocation Table:"/>
+                                                <Canvas fx:id="diskCanvas" height="182.0" width="202.0"/>
+                                            </children>
+                                        </VBox>
+                                    </items>
+                                </SplitPane>
+                            </children>
+                        </AnchorPane>
+                    </content>
+                </Tab>
+            </tabs>
+        </TabPane>
+    </children>
 </AnchorPane>

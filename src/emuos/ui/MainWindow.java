@@ -20,13 +20,33 @@ import java.io.IOException;
 public class MainWindow extends Application {
 
     public final static String WINDOW_TITLE = "emuOS";
-    private final Kernel kernel = new Kernel();
+    private final static Kernel kernel = new Kernel();
+    private Stage monitorStage;
 
     /**
      * @param args the command line arguments
      */
     public static void main(String[] args) {
         launch(args);
+    }
+
+    private static void loadKernel() {
+        kernel.run();
+    }
+
+    public Kernel getKernel() {
+        return kernel;
+    }
+
+    private Stage loadMonitorStage() throws IOException {
+        Stage stage = new Stage();
+        FXMLLoader fxmlLoader = new FXMLLoader(getClass().getResource("Monitor.fxml"));
+        Scene monitorScene = new Scene(fxmlLoader.load(), 800, 600);
+        MonitorController controller = fxmlLoader.getController();
+        controller.init(this);
+        stage.setTitle("Monitor");
+        stage.setScene(monitorScene);
+        return stage;
     }
 
     @Override
@@ -40,10 +60,10 @@ public class MainWindow extends Application {
         TerminalController terminalController = terminalLoader.getController();
         terminalController.setStage(primaryStage);
         terminalController.initShell(kernel);
-        primaryStage.show();
-    }
 
-    private void loadKernel() {
-        kernel.run();
+        monitorStage = loadMonitorStage();
+
+        monitorStage.show();
+        primaryStage.show();
     }
 }
