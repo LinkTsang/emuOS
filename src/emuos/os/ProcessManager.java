@@ -7,10 +7,12 @@ package emuos.os;
 
 import emuos.diskmanager.FilePath;
 import emuos.diskmanager.InputStream;
+import emuos.os.Kernel.Context;
 import emuos.os.ProcessControlBlock.ProcessState;
 
 import java.io.IOException;
-import java.util.ArrayList;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 
@@ -139,8 +141,8 @@ public class ProcessManager {
         return runningProcess;
     }
 
-    public synchronized ArrayList<Snapshot> getSnapshots() {
-        ArrayList<Snapshot> snapshots = new ArrayList<>();
+    public synchronized List<Snapshot> snap() {
+        List<Snapshot> snapshots = new LinkedList<>();
         if (runningProcess != null) {
             snapshots.add(new Snapshot(runningProcess));
         }
@@ -153,44 +155,46 @@ public class ProcessManager {
         return snapshots;
     }
 
-    public static class Snapshot {
-        private int PID;
-        private String path;
-        private ProcessState status;
+    public class Snapshot {
+        private final int PID;
+        private final String path;
+        private final ProcessState status;
+        private final int memorySize;
+        private final Context context;
 
         public Snapshot(ProcessControlBlock pcb) {
-            this(pcb.getPID(), pcb.getImageFile().getPath(), pcb.getState());
+            this(pcb.getPID(), pcb.getImageFile().getPath(), pcb.getState(),
+                    memoryManager.getSpaceSize(pcb.getStartAddress()), pcb.getContext());
         }
 
-        public Snapshot(int PID, String path, ProcessState status) {
+        public Snapshot(int PID, String path, ProcessState status, int memorySize, Context context) {
             this.PID = PID;
             this.path = path;
             this.status = status;
+            this.memorySize = memorySize;
+            this.context = context;
+        }
+
+        public int getMemorySize() {
+            return memorySize;
         }
 
         public int getPID() {
             return PID;
         }
 
-        public void setPID(int PID) {
-            this.PID = PID;
-        }
-
         public String getPath() {
             return path;
-        }
-
-        public void setPath(String path) {
-            this.path = path;
         }
 
         public String getStatus() {
             return status.name();
         }
 
-        public void setStatus(String status) {
-            this.status = ProcessState.valueOf(status);
+        public int getPC() {
+            return context.getPC();
         }
+
     }
 
     public class ProcessException extends Exception {
