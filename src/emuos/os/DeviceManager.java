@@ -71,6 +71,22 @@ public class DeviceManager {
         }
     }
 
+    public synchronized List<Snapshot> snap() {
+        List<Snapshot> snapshots = new LinkedList<>();
+        for (DeviceList list : deviceListMap.values()) {
+            for (DeviceInfo info : list.getDeviceInfoList()) {
+                Snapshot.Status status = Snapshot.Status.IDLE;
+                int PID = 0;
+                if (!info.isIdle()) {
+                    status = Snapshot.Status.BUSY;
+                    PID = info.getPCB().getPID();
+                }
+                snapshots.add(new Snapshot(info.getType(), status, PID));
+            }
+        }
+        return snapshots;
+    }
+
     public interface InterruptHandler {
         void handler(DeviceInfo deviceInfo);
     }
@@ -152,6 +168,35 @@ public class DeviceManager {
 
         Queue<RequestInfo> getWaitingQueue() {
             return waitingQueue;
+        }
+    }
+
+    public static class Snapshot {
+        private int ID;
+        private Status status;
+        private int PID;
+
+        public Snapshot(int ID, Status status, int PID) {
+            this.ID = ID;
+            this.status = status;
+            this.PID = PID;
+        }
+
+        public int getID() {
+            return ID;
+        }
+
+        public Status getStatus() {
+            return status;
+        }
+
+        public int getPID() {
+            return PID;
+        }
+
+        public enum Status {
+            IDLE,
+            BUSY
         }
     }
 
