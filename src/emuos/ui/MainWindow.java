@@ -21,7 +21,6 @@ public class MainWindow extends Application {
 
     public final static String WINDOW_TITLE = "emuOS";
     private final static Kernel kernel = new Kernel();
-    private Stage monitorStage;
 
     /**
      * @param args the command line arguments
@@ -38,17 +37,6 @@ public class MainWindow extends Application {
         return kernel;
     }
 
-    private Stage loadMonitorStage() throws IOException {
-        Stage stage = new Stage();
-        FXMLLoader fxmlLoader = new FXMLLoader(getClass().getResource("Monitor.fxml"));
-        Scene monitorScene = new Scene(fxmlLoader.load(), 800, 600);
-        MonitorController controller = fxmlLoader.getController();
-        controller.init(this);
-        stage.setTitle("Monitor");
-        stage.setScene(monitorScene);
-        return stage;
-    }
-
     @Override
     public void start(Stage primaryStage) throws IOException {
         loadKernel();
@@ -60,10 +48,6 @@ public class MainWindow extends Application {
         TerminalController terminalController = terminalLoader.getController();
         terminalController.setStage(primaryStage);
         terminalController.initShell(kernel);
-
-        monitorStage = loadMonitorStage();
-
-        monitorStage.show();
         primaryStage.show();
     }
 }

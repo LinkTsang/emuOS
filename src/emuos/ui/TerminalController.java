@@ -10,6 +10,7 @@ import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.fxml.Initializable;
 import javafx.scene.Parent;
+import javafx.scene.Scene;
 import javafx.scene.control.TextArea;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
@@ -31,9 +32,11 @@ public class TerminalController implements Initializable {
 
     private final EmuInputStream eis = new EmuInputStream();
     private final EmuOutputStream eos = new EmuOutputStream();
+    private Kernel kernel;
     @FXML
     private TextArea inputArea;
     private Stage stage;
+    private Stage monitorStage;
     private Parent itsRoot;
     private int lastPromptPosition = 0;
     private Shell shell;
@@ -112,6 +115,7 @@ public class TerminalController implements Initializable {
     }
 
     public void initShell(Kernel kernel) {
+        this.kernel = kernel;
         shell = new Shell(kernel, eis, eos);
         shell.setWaitInputHandler(() -> Platform.runLater(() ->
                 lastPromptPosition = inputArea.getLength()
@@ -158,8 +162,39 @@ public class TerminalController implements Initializable {
                 });
             }
         });
+
+        shell.registerCommandHandler(new Command("monitor") {
+            @Override
+            public void execute(String args) {
+                Platform.runLater(() -> {
+                    if (monitorStage == null) {
+                        monitorStage = loadMonitorStage();
+                    }
+                    if (monitorStage != null) {
+                        monitorStage.show();
+                    }
+                });
+            }
+        });
         shellThread = new Thread(shell::run);
         shellThread.start();
+    }
+
+    private Stage loadMonitorStage() {
+        Stage stage = new Stage();
+        FXMLLoader fxmlLoader = new FXMLLoader(getClass().getResource("Monitor.fxml"));
+        Scene monitorScene = null;
+        try {
+            monitorScene = new Scene(fxmlLoader.load(), 800, 600);
+        } catch (IOException e) {
+            e.printStackTrace();
+            return null;
+        }
+        MonitorController controller = fxmlLoader.getController();
+        controller.init(kernel);
+        stage.setTitle("Monitor");
+        stage.setScene(monitorScene);
+        return stage;
     }
 
     private class EmuInputStream extends java.io.InputStream {
@@ -190,5 +225,4 @@ public class TerminalController implements Initializable {
             Platform.runLater(() -> inputArea.appendText(Character.toString((char) b)));
         }
     }
-
 }

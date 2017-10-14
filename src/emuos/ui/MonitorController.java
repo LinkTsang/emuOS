@@ -86,8 +86,8 @@ public class MonitorController implements Initializable {
         initTableView();
     }
 
-    public void init(MainWindow mainWindow) {
-        kernel = mainWindow.getKernel();
+    public void init(Kernel kernel) {
+        this.kernel = kernel;
     }
 
     private void initTableView() {
