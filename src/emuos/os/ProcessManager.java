@@ -28,16 +28,24 @@ public class ProcessManager {
     private ProcessControlBlock runningProcess;
     private int nextPID = 1;
 
-    public ProcessManager(Kernel kernel, MemoryManager memoryManager) {
+    ProcessManager(Kernel kernel, MemoryManager memoryManager) {
         this.kernel = kernel;
         this.memoryManager = memoryManager;
     }
 
-    public ProcessControlBlock create(String path) throws IOException, ProcessException {
+    ProcessControlBlock create(String path) throws IOException, ProcessException {
         FilePath imageFile = new FilePath(path);
         return create(imageFile);
     }
 
+    /**
+     * create a process
+     *
+     * @param imageFile imageFile
+     * @return PCB
+     * @throws IOException      IOException
+     * @throws ProcessException ProcessException
+     */
     public synchronized ProcessControlBlock create(FilePath imageFile) throws IOException, ProcessException {
         if (!imageFile.exists() || !imageFile.isFile()) return null;
         int imageSize = imageFile.size();
@@ -63,7 +71,7 @@ public class ProcessManager {
         return PCB;
     }
 
-    public synchronized void destroy(ProcessControlBlock PCB) {
+    synchronized void destroy(ProcessControlBlock PCB) {
         if (PCB.equals(runningProcess)) {
             assert PCB.getState() == ProcessState.RUNNING;
             runningProcess = null;
@@ -79,7 +87,7 @@ public class ProcessManager {
         schedule();
     }
 
-    public synchronized void block(ProcessControlBlock PCB) {
+    synchronized void block(ProcessControlBlock PCB) {
         if (PCB.equals(runningProcess)) {
             assert PCB.getState() == ProcessState.RUNNING;
             PCB.setState(ProcessState.BLOCKED);
@@ -96,7 +104,7 @@ public class ProcessManager {
         }
     }
 
-    public synchronized void awake(ProcessControlBlock PCB) {
+    synchronized void awake(ProcessControlBlock PCB) {
         if (PCB.getState() == ProcessState.BLOCKED) {
             getBlockedQueue().remove(PCB);
             PCB.setState(ProcessState.READY);
@@ -106,7 +114,7 @@ public class ProcessManager {
         }
     }
 
-    public synchronized void schedule() {
+    synchronized void schedule() {
         if (runningProcess != null) {
             runningProcess.saveContext(kernel.getContext());
             runningProcess.setState(ProcessState.READY);
@@ -123,14 +131,14 @@ public class ProcessManager {
     /**
      * @return the blockedQueue
      */
-    public BlockingQueue<ProcessControlBlock> getBlockedQueue() {
+    private BlockingQueue<ProcessControlBlock> getBlockedQueue() {
         return blockedQueue;
     }
 
     /**
      * @return the readyQueue
      */
-    public BlockingQueue<ProcessControlBlock> getReadyQueue() {
+    private BlockingQueue<ProcessControlBlock> getReadyQueue() {
         return readyQueue;
     }
 
@@ -141,6 +149,9 @@ public class ProcessManager {
         return runningProcess;
     }
 
+    /**
+     * @return the snapshot of processes
+     */
     public synchronized List<Snapshot> snap() {
         List<Snapshot> snapshots = new LinkedList<>();
         if (runningProcess != null) {
@@ -155,6 +166,9 @@ public class ProcessManager {
         return snapshots;
     }
 
+    /**
+     * Snapshot class
+     */
     public class Snapshot {
         private final int PID;
         private final String path;
@@ -162,12 +176,12 @@ public class ProcessManager {
         private final int memorySize;
         private final Context context;
 
-        public Snapshot(ProcessControlBlock pcb) {
+        private Snapshot(ProcessControlBlock pcb) {
             this(pcb.getPID(), pcb.getImageFile().getPath(), pcb.getState(),
                     memoryManager.getSpaceSize(pcb.getStartAddress()), pcb.getContext());
         }
 
-        public Snapshot(int PID, String path, ProcessState status, int memorySize, Context context) {
+        private Snapshot(int PID, String path, ProcessState status, int memorySize, Context context) {
             this.PID = PID;
             this.path = path;
             this.status = status;
@@ -175,31 +189,48 @@ public class ProcessManager {
             this.context = context;
         }
 
+        /**
+         * @return MemorySize
+         */
         public int getMemorySize() {
             return memorySize;
         }
 
+        /**
+         * @return PID
+         */
         public int getPID() {
             return PID;
         }
 
+        /**
+         * @return Path
+         */
         public String getPath() {
             return path;
         }
 
+        /**
+         * @return Status
+         */
         public String getStatus() {
             return status.name();
         }
 
+        /**
+         * @return PC
+         */
         public int getPC() {
             return context.getPC();
         }
 
     }
 
+    /**
+     * ProcessException class
+     */
     public class ProcessException extends Exception {
-
-        public ProcessException(String message) {
+        ProcessException(String message) {
             super(message);
         }
     }

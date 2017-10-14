@@ -33,6 +33,9 @@ public class ProcessControlBlock {
         context.setPC(startAddress);
     }
 
+    /**
+     * @return the image file
+     */
     public FilePath getImageFile() {
         return imageFile;
     }
@@ -44,7 +47,7 @@ public class ProcessControlBlock {
         return PID;
     }
 
-    public void saveContext(Context context) {
+    void saveContext(Context context) {
         try {
             this.context = (Context) context.clone();
         } catch (CloneNotSupportedException e) {
@@ -75,7 +78,7 @@ public class ProcessControlBlock {
         return state;
     }
 
-    public void setState(ProcessState state) {
+    void setState(ProcessState state) {
         this.state = state;
     }
 
@@ -86,6 +89,9 @@ public class ProcessControlBlock {
         return startAddress;
     }
 
+    /**
+     * @return the context
+     */
     public Context getContext() {
         return context;
     }
@@ -100,10 +106,9 @@ public class ProcessControlBlock {
                 '}';
     }
 
-    public enum BlockReason {
-
-    }
-
+    /**
+     * Process State
+     */
     public enum ProcessState {
         RUNNING,
         READY,

@@ -38,14 +38,25 @@ public class Kernel {
     private Listener intIOListener;
     private BlockingQueue<Runnable> runnableQueue = new LinkedBlockingDeque<>();
 
+    /**
+     * ctor
+     */
     public Kernel() {
-        deviceManager.setFinishedHandler(deviceInfo -> runnableQueue.add(() -> context.setIntIO()));
+        deviceManager.setFinishedHandler(deviceInfo -> runLater(() -> context.setIntIO()));
     }
 
+    /**
+     * main
+     *
+     * @param args args
+     * @throws InterruptedException            InterruptedException
+     * @throws IOException                     InterruptedException
+     * @throws ProcessManager.ProcessException InterruptedException
+     */
     public static void main(String[] args) throws InterruptedException, IOException, ProcessManager.ProcessException {
         Kernel kernel = new Kernel();
         final boolean[] lastNullPCB = {false};
-        kernel.setStepFinishedListener((k -> {
+        kernel.setBeforeStepListener((k -> {
             StringBuilder msg = new StringBuilder("\n");
             Context context = k.getContext();
             ProcessControlBlock pcb = k.processManager.getRunningProcess();
@@ -80,60 +91,107 @@ public class Kernel {
         }
     }
 
+    /**
+     * @return DeviceManager
+     */
     public DeviceManager getDeviceManager() {
         return deviceManager;
     }
 
+    /**
+     * @return MemoryManager
+     */
     public MemoryManager getMemoryManager() {
         return memoryManager;
     }
 
+    /**
+     * @return ProcessManager
+     */
     public ProcessManager getProcessManager() {
         return processManager;
     }
 
+    /**
+     * set IntEndListener
+     *
+     * @param listener IntEndListener
+     * @return the old listener
+     */
     public synchronized Listener setIntEndListener(Listener listener) {
         Listener oldListener = intEndListener;
         intEndListener = listener;
         return oldListener;
     }
 
+    /**
+     * set IntTimeSliceListener
+     *
+     * @param listener IntTimeSliceListener
+     * @return the old listener
+     */
     public synchronized Listener setIntTimeSliceListener(Listener listener) {
         Listener oldListener = intTimeSliceListener;
         intTimeSliceListener = listener;
         return oldListener;
     }
 
+    /**
+     * set IntIOListener
+     *
+     * @param listener IntIOListener
+     * @return the old listener
+     */
     public synchronized Listener setIntIOListener(Listener listener) {
         Listener oldListener = intIOListener;
         intIOListener = listener;
         return oldListener;
     }
 
-    public Context getContext() {
+    /**
+     * @return the context
+     */
+    Context getContext() {
         return context;
     }
 
-    public void setContext(Context context) {
+    /**
+     * set the context
+     *
+     * @param context context
+     */
+    void setContext(Context context) {
         this.context.AX = context.AX;
         this.context.PC = context.PC;
         this.context.IR = context.IR;
         this.context.FLAGS = context.FLAGS;
     }
 
-    public synchronized Listener setStepFinishedListener(Listener listener) {
+    /**
+     * set BeforeStepListener
+     *
+     * @param listener BeforeStepListener
+     * @return the old listener
+     */
+    private synchronized Listener setBeforeStepListener(Listener listener) {
         Listener oldListener = beforeStepListener;
         beforeStepListener = listener;
         return oldListener;
     }
 
-    public synchronized Listener setAfterStepListener(Listener listener) {
+    /**
+     * set AfterStepListener
+     *
+     * @param listener AfterStepListener
+     * @return the old listener
+     */
+    private synchronized Listener setAfterStepListener(Listener listener) {
         Listener oldListener = afterStepListener;
         afterStepListener = listener;
         return oldListener;
     }
 
-    public void CPU() {
+    private void CPU() {
         time++;
         if (context.isIntEnd()) {
             interruptEnd();
@@ -243,6 +301,9 @@ public class Kernel {
         }
     }
 
+    /**
+     * run the kernel
+     */
     public void run() {
         timer.schedule(new TimerTask() {
             @Override
@@ -263,35 +324,52 @@ public class Kernel {
         deviceManager.start();
     }
 
+    /**
+     * stop the kernel
+     */
     public void stop() {
         deviceManager.stop();
         timer.cancel();
         timer.purge();
     }
 
-    public void runLater(Runnable runnable) {
+    /**
+     * Run a runnable object in the kernel thread
+     *
+     * @param runnable runnable task
+     */
+    private void runLater(Runnable runnable) {
         runnableQueue.add(runnable);
     }
 
     /**
-     * @return the time
+     * @return the current time
      */
     public int getTime() {
         return time;
     }
 
+    /**
+     * @return the current time slice
+     */
     public int getTimeSlice() {
         return timeSlice;
     }
 
-    public void resetTimeSlice() {
+    void resetTimeSlice() {
         timeSlice = INIT_TIME_SLICE;
     }
 
+    /**
+     * kernel Event Listener
+     */
     public interface Listener {
         void handle(Kernel kernel);
     }
 
+    /**
+     * the Context class
+     */
     public static class Context implements Cloneable {
         public static final int PSW_INT_END = 9;
         public static final int PSW_INT_TIME_SLICE = 8;
@@ -306,7 +384,7 @@ public class Kernel {
         private int IR;         // last Instruction
         private int PC;         // next PC
 
-        public Context() {
+        Context() {
         }
 
         @Override
@@ -341,7 +419,7 @@ public class Kernel {
             return AX;
         }
 
-        public void setAX(int AX) {
+        void setAX(int AX) {
             this.AX = AX;
         }
 
@@ -365,27 +443,27 @@ public class Kernel {
             return PSW.get(PSW_INT_IO);
         }
 
-        public void clearIntEnd() {
+        void clearIntEnd() {
             PSW.clear(PSW_INT_END);
         }
 
-        public void clearTimeSlice() {
+        void clearTimeSlice() {
             PSW.clear(PSW_INT_TIME_SLICE);
         }
 
-        public void clearIntIO() {
+        void clearIntIO() {
             PSW.clear(PSW_INT_IO);
         }
 
-        public void setIntEnd() {
+        void setIntEnd() {
             PSW.set(PSW_INT_END);
         }
 
-        public void setIntTimeSlice() {
+        void setIntTimeSlice() {
             PSW.set(PSW_INT_TIME_SLICE);
         }
 
-        public void setIntIO() {
+        void setIntIO() {
             PSW.set(PSW_INT_IO);
         }
 
@@ -393,7 +471,7 @@ public class Kernel {
             return IR;
         }
 
-        public void setIR(int IR) {
+        void setIR(int IR) {
             this.IR = IR;
         }
 
@@ -401,7 +479,7 @@ public class Kernel {
             return PC;
         }
 
-        public void setPC(int PC) {
+        void setPC(int PC) {
             this.PC = PC;
         }
 

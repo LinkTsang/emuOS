@@ -28,11 +28,11 @@ public class MemoryManager {
         this(DEFAULT_USER_SPACE_SIZE);
     }
 
-    public MemoryManager(int userSpaceSize) {
+    private MemoryManager(int userSpaceSize) {
         this(AllocationMethod.FirstFit, userSpaceSize);
     }
 
-    public MemoryManager(AllocationMethod allocationMethod, int userSpaceSize) {
+    private MemoryManager(AllocationMethod allocationMethod, int userSpaceSize) {
         switch (allocationMethod) {
             case FirstFit:
                 allocator = new FirstFitAllocator();
@@ -109,7 +109,7 @@ public class MemoryManager {
         return PCBList;
     }
 
-    public boolean addPCB(ProcessControlBlock PCB) {
+    boolean addPCB(ProcessControlBlock PCB) {
         for (int i = 0; i < PCBList.length; ++i) {
             if (PCBList[i] == null) {
                 PCBList[i] = PCB;
@@ -119,7 +119,7 @@ public class MemoryManager {
         return false;
     }
 
-    public boolean removePCB(ProcessControlBlock PCB) {
+    boolean removePCB(ProcessControlBlock PCB) {
         for (int i = 0; i < PCBList.length; ++i) {
             if (PCBList[i] == PCB) {
                 PCBList[i] = null;
@@ -129,6 +129,10 @@ public class MemoryManager {
         return false;
     }
 
+    /**
+     * @param address address
+     * @return size
+     */
     public int getSpaceSize(int address) {
         for (Space s : allocatedSpaces) {
             if (s.startAddress == address) {
@@ -138,18 +142,24 @@ public class MemoryManager {
         return -1;
     }
 
+    /**
+     * AllocationMethod
+     */
     public enum AllocationMethod {
         FirstFit,
         NextFit,
         BestFit
     }
 
+    /**
+     * Space class
+     */
     public static class Space {
 
         public int startAddress;
         public int size;
 
-        public Space(int startAddress, int size) {
+        private Space(int startAddress, int size) {
             this.startAddress = startAddress;
             this.size = size;
         }
