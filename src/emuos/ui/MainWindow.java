@@ -10,6 +10,7 @@ import javafx.application.Application;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
+import javafx.scene.image.Image;
 import javafx.stage.Stage;
 
 import java.io.IOException;
@@ -45,6 +46,7 @@ public class MainWindow extends Application {
         Scene scene = new Scene(root, 800, 600);
         primaryStage.setTitle(WINDOW_TITLE);
         primaryStage.setScene(scene);
+        primaryStage.getIcons().add(new Image(this.getClass().getResourceAsStream("app.png")));
         TerminalController terminalController = terminalLoader.getController();
         terminalController.setStage(primaryStage);
         terminalController.initShell(kernel);

@@ -12,6 +12,7 @@ import javafx.fxml.Initializable;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.control.TextArea;
+import javafx.scene.image.Image;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
 import javafx.stage.Stage;
@@ -194,6 +195,7 @@ public class TerminalController implements Initializable {
         controller.init(kernel);
         stage.setTitle("Monitor");
         stage.setScene(monitorScene);
+        stage.getIcons().add(new Image(this.getClass().getResourceAsStream("monitor.png")));
         return stage;
     }
 
