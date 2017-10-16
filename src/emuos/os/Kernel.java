@@ -21,7 +21,7 @@ import static emuos.compiler.Instruction.*;
  * @author Link
  */
 public class Kernel {
-    private static final long CPU_PERIOD_MS = 100;
+    public static final long CPU_PERIOD_MS = 500;
     private static final int INIT_TIME_SLICE = 6;
     private static final Logger LOGGER = Logger.getLogger("kernel.log");
     private final DeviceManager deviceManager = new DeviceManager();
@@ -165,6 +165,14 @@ public class Kernel {
         this.context.PC = context.PC;
         this.context.IR = context.IR;
         this.context.FLAGS = context.FLAGS;
+    }
+
+    /**
+     * @return current context
+     */
+    public Context snapContext() {
+        // FIXME: synchronization?
+        return context.clone();
     }
 
     /**
@@ -388,10 +396,15 @@ public class Kernel {
         }
 
         @Override
-        protected Object clone() throws CloneNotSupportedException {
-            Context context = (Context) super.clone();
-            context.PSW = (BitSet) PSW.clone();
-            return context;
+        protected Context clone() {
+            try {
+                Context context = (Context) super.clone();
+                context.PSW = (BitSet) PSW.clone();
+                return context;
+            } catch (CloneNotSupportedException e) {
+                e.printStackTrace();
+                throw new AssertionError();
+            }
         }
 
         @Override

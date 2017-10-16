@@ -48,11 +48,7 @@ public class ProcessControlBlock {
     }
 
     void saveContext(Context context) {
-        try {
-            this.context = (Context) context.clone();
-        } catch (CloneNotSupportedException e) {
-            e.printStackTrace();
-        }
+        this.context = context.clone();
     }
 
     @Override

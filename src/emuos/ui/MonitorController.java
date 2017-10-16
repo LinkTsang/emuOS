@@ -6,15 +6,19 @@ package emuos.ui;
  * and open the template in the editor.
  */
 
+import emuos.compiler.Instruction;
 import emuos.diskmanager.FilePath;
 import emuos.diskmanager.FileSystem;
 import emuos.os.DeviceManager;
 import emuos.os.Kernel;
+import emuos.os.ProcessControlBlock;
 import emuos.os.ProcessManager;
 import javafx.animation.Animation;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
 import javafx.beans.property.ReadOnlyStringWrapper;
+import javafx.beans.property.SimpleStringProperty;
+import javafx.beans.property.StringProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.event.Event;
@@ -36,12 +40,25 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.ResourceBundle;
 
+
 /**
  * FXML Controller class
  *
  * @author Link
  */
 public class MonitorController implements Initializable {
+
+    private final OverviewItem kernelTime = new OverviewItem("Kernel Time", "0");
+    private final OverviewItem timeSlice = new OverviewItem("Time Slice", "");
+    private final OverviewItem runningPID = new OverviewItem("Running PID", "");
+
+    private final OverviewItem intermediateResult = new OverviewItem("Intermediate Result", "");
+    private final OverviewItem runningInstruction = new OverviewItem("Running Instruction", "");
+
+    private final ObservableList<OverviewItem> overviewList =
+            FXCollections.observableArrayList(
+                    kernelTime, timeSlice, runningPID,
+                    intermediateResult, runningInstruction);
 
     private final ObservableList<ProcessManager.Snapshot> processList =
             FXCollections.observableArrayList();
@@ -51,9 +68,13 @@ public class MonitorController implements Initializable {
     private final Image folderIcon = new Image(getClass().getResourceAsStream("folder.png"));
     private final Image fileIcon = new Image(getClass().getResourceAsStream("file.png"));
     public TabPane tabPane;
+    public Tab overviewTab;
     public Tab processesTab;
     public Tab devicesTab;
     public Tab diskTab;
+    public TableView<OverviewItem> overviewTable;
+    public TableColumn<OverviewItem, String> overviewItemCol;
+    public TableColumn<OverviewItem, String> overviewValueCol;
     public TableView<ProcessManager.Snapshot> processesTable;
     public TableColumn<ProcessManager.Snapshot, Integer> processPIDCol;
     public TableColumn<ProcessManager.Snapshot, String> processStatusCol;
@@ -69,6 +90,7 @@ public class MonitorController implements Initializable {
     public TreeTableColumn<FilePath, String> fileNameCol;
     public TreeTableColumn<FilePath, String> fileSizeCol;
     private Kernel kernel;
+    private Timeline overviewTimeline;
     private Timeline processesTimeline;
     private Timeline devicesTimeline;
     private Timeline diskTimeline;
@@ -86,11 +108,15 @@ public class MonitorController implements Initializable {
         initTableView();
     }
 
-    public void init(Kernel kernel) {
+    void init(Kernel kernel) {
         this.kernel = kernel;
     }
 
     private void initTableView() {
+        overviewTable.setItems(overviewList);
+        overviewItemCol.setCellValueFactory(new PropertyValueFactory<>("name"));
+        overviewValueCol.setCellValueFactory(new PropertyValueFactory<>("value"));
+
         processesTable.setItems(processList);
         processPIDCol.setCellValueFactory(new PropertyValueFactory<>("PID"));
         processPathCol.setCellValueFactory(new PropertyValueFactory<>("path"));
@@ -130,6 +156,18 @@ public class MonitorController implements Initializable {
     }
 
     private void initTimeLine() {
+        overviewTimeline = new Timeline(new KeyFrame(Duration.millis(Kernel.CPU_PERIOD_MS), ae -> {
+            kernelTime.setValue(String.valueOf(kernel.getTime()));
+            timeSlice.setValue(String.valueOf(kernel.getTimeSlice()));
+            ProcessControlBlock pcb = kernel.getProcessManager().getRunningProcess();
+            runningPID.setValue(pcb == null ? "0" : String.valueOf(pcb.getPID()));
+            Kernel.Context context = kernel.snapContext();
+            intermediateResult.setValue(String.valueOf(context.getAX()));
+            runningInstruction.setValue(Instruction.getName(context.getIR()));
+        }));
+        overviewTimeline.setCycleCount(Animation.INDEFINITE);
+
+
         processesTimeline = new Timeline(new KeyFrame(Duration.millis(200), ae -> {
             TableView.TableViewSelectionModel<ProcessManager.Snapshot> model = processesTable.getSelectionModel();
             int index = model.getSelectedIndex();
@@ -146,9 +184,7 @@ public class MonitorController implements Initializable {
         }));
         devicesTimeline.setCycleCount(Animation.INDEFINITE);
 
-        diskTimeline = new Timeline(new KeyFrame(Duration.millis(1000), ae -> {
-            renderDiskMap();
-        }));
+        diskTimeline = new Timeline(new KeyFrame(Duration.millis(1000), ae -> renderDiskMap()));
         diskTimeline.setCycleCount(Animation.INDEFINITE);
     }
 
@@ -184,15 +220,15 @@ public class MonitorController implements Initializable {
         FileSystem fs = FileSystem.getFileSystem();
         final int col = 16;
         final double size = diskCanvas.getWidth() / col;
-        double x = 0, y = 0, w = size * 0.9, h = w;
+        double x = 0, y = 0, length = size * 0.9;
         final double space = size * 0.1;
         for (int i = 0; i < 64 * 2; ++i) {
             context.setFill(fs.read(i) == 0 ? Color.LIGHTGREEN : Color.GREEN);
-            context.fillRect(x, y, w, h);
-            x += w + space;
+            context.fillRect(x, y, length, length);
+            x += length + space;
             if (i % col == col - 1) {
                 x = 0;
-                y += h + space;
+                y += length + space;
             }
         }
     }
@@ -231,6 +267,48 @@ public class MonitorController implements Initializable {
         item.loadChildren();
     }
 
+    public void handleOverviewTabSelectionChanged(Event event) {
+        if (overviewTab.isSelected()) {
+            overviewTimeline.play();
+        } else {
+            overviewTimeline.pause();
+        }
+    }
+
+    public static class OverviewItem {
+        private StringProperty name = new SimpleStringProperty(this, "name");
+        private StringProperty value = new SimpleStringProperty(this, "value");
+
+        OverviewItem(String name, String value) {
+            setName(name);
+            setValue(value);
+        }
+
+        public String getName() {
+            return nameProperty().get();
+        }
+
+        public void setName(String value) {
+            nameProperty().set(value);
+        }
+
+        public StringProperty nameProperty() {
+            return name;
+        }
+
+        public String getValue() {
+            return valueProperty().get();
+        }
+
+        public void setValue(String value) {
+            valueProperty().set(value);
+        }
+
+        public StringProperty valueProperty() {
+            return value;
+        }
+    }
+
     private class FileTreeItem extends TreeItem<FilePath> {
         private boolean childrenLoaded = false;
 
@@ -238,11 +316,11 @@ public class MonitorController implements Initializable {
             super(path, folderIcon);
         }
 
-        public void invalidate() {
+        void invalidate() {
             childrenLoaded = false;
         }
 
-        public void loadChildren() {
+        void loadChildren() {
             FilePath filePath = getValue();
             List<TreeItem<FilePath>> children = new ArrayList<>();
             for (FilePath f : filePath.list()) {
