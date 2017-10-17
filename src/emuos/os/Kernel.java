@@ -7,10 +7,9 @@ package emuos.os;
 
 import emuos.compiler.Instruction;
 
+import java.io.Closeable;
 import java.io.IOException;
-import java.util.BitSet;
-import java.util.Timer;
-import java.util.TimerTask;
+import java.util.*;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.logging.Logger;
@@ -20,7 +19,7 @@ import static emuos.compiler.Instruction.*;
 /**
  * @author Link
  */
-public class Kernel {
+public class Kernel implements Closeable {
     public static final long CPU_PERIOD_MS = 500;
     private static final int INIT_TIME_SLICE = 6;
     private static final Logger LOGGER = Logger.getLogger("kernel.log");
@@ -28,21 +27,22 @@ public class Kernel {
     private final MemoryManager memoryManager = new MemoryManager();
     private final ProcessManager processManager = new ProcessManager(this, memoryManager);
     private final Timer timer = new Timer(true);
+    private final Collection<Listener> beginOperationListeners = new LinkedList<>();
+    private final Collection<Listener> intExitListeners = new LinkedList<>();
+    private final Collection<Listener> intTimeSliceListeners = new LinkedList<>();
+    private final Collection<Listener> intIOListeners = new LinkedList<>();
     private volatile Context context = new Context();
     private int time;
     private int timeSlice = 1;
-    private Listener beforeStepListener;
     private Listener afterStepListener;
-    private Listener intEndListener;
-    private Listener intTimeSliceListener;
-    private Listener intIOListener;
     private BlockingQueue<Runnable> runnableQueue = new LinkedBlockingDeque<>();
+    private DeviceManager.Handler deviceIOFinishedHandler = deviceInfo -> runLater(() -> context.setIntIO());
 
     /**
      * ctor
      */
     public Kernel() {
-        deviceManager.setFinishedHandler(deviceInfo -> runLater(() -> context.setIntIO()));
+        deviceManager.addFinishedHandler(deviceIOFinishedHandler);
     }
 
     /**
@@ -54,40 +54,41 @@ public class Kernel {
      * @throws ProcessManager.ProcessException InterruptedException
      */
     public static void main(String[] args) throws InterruptedException, IOException, ProcessManager.ProcessException {
-        Kernel kernel = new Kernel();
-        final boolean[] lastNullPCB = {false};
-        kernel.setBeforeStepListener((k -> {
-            StringBuilder msg = new StringBuilder("\n");
-            Context context = k.getContext();
-            ProcessControlBlock pcb = k.processManager.getRunningProcess();
-            if (pcb == null) {
-                if (!lastNullPCB[0]) {
-                    msg.append("==== There is no any running process ====\n");
-                    lastNullPCB[0] = true;
+        try (Kernel kernel = new Kernel()) {
+            final boolean[] lastNullPCB = {false};
+            kernel.addBeginOperationListener((k -> {
+                StringBuilder msg = new StringBuilder("\n");
+                Context context = k.getContext();
+                ProcessControlBlock pcb = k.processManager.getRunningProcess();
+                if (pcb == null) {
+                    if (!lastNullPCB[0]) {
+                        msg.append("==== There is no any running process ====\n");
+                        lastNullPCB[0] = true;
+                        Kernel.LOGGER.info(msg.toString());
+                    }
+                } else {
+                    lastNullPCB[0] = false;
+                    msg.append("===== CPU Stat =====\n");
+                    msg.append(String.format("  Current Time : %d\n", k.getTime()));
+                    msg.append(String.format("  TimeSlice    : %d\n", k.getTimeSlice()));
+                    msg.append(String.format("  Current PID  : %d\n", pcb.getPID()));
+                    msg.append(String.format("  Context: %s\n", context.toString()));
+                    msg.append("====================\n");
                     Kernel.LOGGER.info(msg.toString());
                 }
-            } else {
-                lastNullPCB[0] = false;
-                msg.append("===== CPU Stat =====\n");
-                msg.append(String.format("  Current Time : %d\n", k.getTime()));
-                msg.append(String.format("  TimeSlice    : %d\n", k.getTimeSlice()));
-                msg.append(String.format("  Current PID  : %d\n", pcb.getPID()));
-                msg.append(String.format("  Context: %s\n", context.toString()));
-                msg.append("====================\n");
-                Kernel.LOGGER.info(msg.toString());
+            }));
+            kernel.run();
+            ProcessManager processManager = kernel.processManager;
+            System.out.println("Creating processes...");
+            Thread.sleep(1000);
+            // It's required to create the file '/a/a.e'
+            for (int i = 0; i < 5; ++i) {
+                processManager.create("/a/a.e");
             }
-        }));
-        kernel.run();
-        ProcessManager processManager = kernel.processManager;
-        System.out.println("Creating processes...");
-        Thread.sleep(1000);
-        // It's required to create the file '/a/a.e'
-        for (int i = 0; i < 5; ++i) {
-            processManager.create("/a/a.e");
-        }
-        System.out.println("Waiting for CPU...");
-        synchronized (kernel) {
-            kernel.wait();
+            System.out.println("Waiting for CPU...");
+            synchronized (kernel) {
+                kernel.wait();
+            }
         }
     }
 
@@ -113,39 +114,76 @@ public class Kernel {
     }
 
     /**
-     * set IntEndListener
+     * add IntExitListener
      *
-     * @param listener IntEndListener
-     * @return the old listener
+     * @param listener IntExitListener
+     * @return <tt>true</tt> if the listener was added as a result of the call
      */
-    public synchronized Listener setIntEndListener(Listener listener) {
-        Listener oldListener = intEndListener;
-        intEndListener = listener;
-        return oldListener;
+    public boolean addIntExitListener(Listener listener) {
+        synchronized (intExitListeners) {
+            return intExitListeners.add(listener);
+        }
     }
 
     /**
-     * set IntTimeSliceListener
+     * add IntTimeSliceListener
      *
      * @param listener IntTimeSliceListener
-     * @return the old listener
+     * @return <tt>true</tt> if the listener was added as a result of the call
      */
-    public synchronized Listener setIntTimeSliceListener(Listener listener) {
-        Listener oldListener = intTimeSliceListener;
-        intTimeSliceListener = listener;
-        return oldListener;
+    public boolean addIntTimeSliceListener(Listener listener) {
+        synchronized (intTimeSliceListeners) {
+            return intTimeSliceListeners.add(listener);
+        }
     }
 
     /**
-     * set IntIOListener
+     * add IntIOListener
      *
      * @param listener IntIOListener
-     * @return the old listener
+     * @return <tt>true</tt> if the listener was added as a result of the call
      */
-    public synchronized Listener setIntIOListener(Listener listener) {
-        Listener oldListener = intIOListener;
-        intIOListener = listener;
-        return oldListener;
+    public boolean addIntIOListener(Listener listener) {
+        synchronized (intIOListeners) {
+            return intIOListeners.add(listener);
+        }
+    }
+
+
+    /**
+     * remove IntExitListener
+     *
+     * @param listener IntExitListener
+     * @return <tt>true</tt> if an element was removed as a result of this call
+     */
+    public boolean removeIntExitListener(Listener listener) {
+        synchronized (intExitListeners) {
+            return intExitListeners.remove(listener);
+        }
+    }
+
+    /**
+     * remove IntTimeSliceListener
+     *
+     * @param listener IntTimeSliceListener
+     * @return <tt>true</tt> if an element was removed as a result of this call
+     */
+    public boolean removeIntTimeSliceListener(Listener listener) {
+        synchronized (intTimeSliceListeners) {
+            return intTimeSliceListeners.remove(listener);
+        }
+    }
+
+    /**
+     * remove IntIOListener
+     *
+     * @param listener IntIOListener
+     * @return <tt>true</tt> if an element was removed as a result of this call
+     */
+    public boolean removeIntIOListener(Listener listener) {
+        synchronized (intIOListeners) {
+            return intIOListeners.remove(listener);
+        }
     }
 
     /**
@@ -179,12 +217,11 @@ public class Kernel {
      * set BeforeStepListener
      *
      * @param listener BeforeStepListener
-     * @return the old listener
      */
-    private synchronized Listener setBeforeStepListener(Listener listener) {
-        Listener oldListener = beforeStepListener;
-        beforeStepListener = listener;
-        return oldListener;
+    private boolean addBeginOperationListener(Listener listener) {
+        synchronized (beginOperationListeners) {
+            return beginOperationListeners.add(listener);
+        }
     }
 
     /**
@@ -283,25 +320,19 @@ public class Kernel {
                 + "  Context: " + context.toString() + "\n"
                 + "*****************\n");
         pcb.saveContext(context);
-        if (intEndListener != null) {
-            intEndListener.handle(this);
-        }
+        intExitListeners.forEach(listener -> listener.handle(this));
         processManager.destroy(pcb);
     }
 
     private void interruptTime() {
         LOGGER.info("\n**** INT TIME SLICE ****\n");
-        if (intTimeSliceListener != null) {
-            intTimeSliceListener.handle(this);
-        }
+        intTimeSliceListeners.forEach(listener -> listener.handle(this));
         processManager.schedule();
     }
 
     private void interruptIO() {
         LOGGER.info("\n**** INT IO ****\n");
-        if (intIOListener != null) {
-            intIOListener.handle(this);
-        }
+        intIOListeners.forEach(listener -> listener.handle(this));
         BlockingQueue<ProcessControlBlock> queue = deviceManager.getFinishedQueue();
         ProcessControlBlock pcb;
         while ((pcb = queue.poll()) != null) {
@@ -319,9 +350,7 @@ public class Kernel {
                 if (processManager.getRunningProcess() == null) {
                     processManager.schedule();
                 }
-                if (beforeStepListener != null) {
-                    beforeStepListener.handle(Kernel.this);
-                }
+                beginOperationListeners.forEach(listener -> listener.handle(Kernel.this));
                 CPU();
                 Runnable runnable;
                 while ((runnable = runnableQueue.poll()) != null) {
@@ -366,6 +395,11 @@ public class Kernel {
 
     void resetTimeSlice() {
         timeSlice = INIT_TIME_SLICE;
+    }
+
+    @Override
+    public void close() {
+        deviceManager.removeFinishedHandler(deviceIOFinishedHandler);
     }
 
     /**
