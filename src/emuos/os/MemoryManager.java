@@ -23,6 +23,7 @@ public class MemoryManager {
     private final ProcessControlBlock PCBList[] = new ProcessControlBlock[MAX_PCB_COUNT];
     private byte userSpace[];
     private Allocator allocator;
+    private int allocatedSize;
 
     public MemoryManager() {
         this(DEFAULT_USER_SPACE_SIZE);
@@ -52,7 +53,11 @@ public class MemoryManager {
      * @return address
      */
     public synchronized int alloc(int size) {
-        return allocator.alloc(size);
+        int address = allocator.alloc(size);
+        if (address >= 0) {
+            allocatedSize += size;
+        }
+        return address;
     }
 
     /**
@@ -61,11 +66,14 @@ public class MemoryManager {
      * @param address address
      */
     public synchronized void free(int address) {
+        int size = getSpaceSize(address);
         allocator.free(address);
+        allocatedSize -= size;
     }
 
     /**
      * read the value from the address
+     *
      * @param address address
      * @return value
      */
@@ -75,8 +83,9 @@ public class MemoryManager {
 
     /**
      * write the value to the address
+     *
      * @param address address
-     * @param value value
+     * @param value   value
      */
     public void write(int address, byte value) {
         userSpace[address] = value;
@@ -84,6 +93,7 @@ public class MemoryManager {
 
     /**
      * read the integer value from the address
+     *
      * @param address address
      * @return value
      */
@@ -98,8 +108,9 @@ public class MemoryManager {
 
     /**
      * write the integer value to the address
+     *
      * @param address address
-     * @param value value
+     * @param value   value
      */
     public void writeInt(int address, int value) {
         userSpace[address] = (byte) value;
@@ -145,6 +156,7 @@ public class MemoryManager {
 
     /**
      * add PCB
+     *
      * @param PCB PCB
      * @return true if successful
      */
@@ -162,6 +174,7 @@ public class MemoryManager {
 
     /**
      * remove PCB
+     *
      * @param PCB PCB
      * @return true if successful
      */
@@ -187,6 +200,10 @@ public class MemoryManager {
                 .findFirst()
                 .map(s -> s.size)
                 .orElse(-1);
+    }
+
+    public int getAllocatedSize() {
+        return allocatedSize;
     }
 
     /**
@@ -215,7 +232,7 @@ public class MemoryManager {
     private abstract class Allocator {
         abstract int alloc(int size);
 
-        void free(int address) {
+        final void free(int address) {
             if (address < 0) {
                 throw new IllegalArgumentException(String.format("Illegal address, the address( = %d) must be greater than or equal to zero.", address));
             }

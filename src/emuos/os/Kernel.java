@@ -21,7 +21,7 @@ import static emuos.compiler.Instruction.*;
  */
 public class Kernel implements Closeable {
     public static final long CPU_PERIOD_MS = 500;
-    private static final int INIT_TIME_SLICE = 6;
+    public static final int INIT_TIME_SLICE = 6;
     private static final Logger LOGGER = Logger.getLogger("kernel.log");
     private final DeviceManager deviceManager = new DeviceManager();
     private final MemoryManager memoryManager = new MemoryManager();
@@ -32,7 +32,8 @@ public class Kernel implements Closeable {
     private final Collection<Listener> intTimeSliceListeners = new LinkedList<>();
     private final Collection<Listener> intIOListeners = new LinkedList<>();
     private volatile Context context = new Context();
-    private int time;
+    private long time;
+    private long executionTime;
     private int timeSlice = 1;
     private Listener afterStepListener;
     private BlockingQueue<Runnable> runnableQueue = new LinkedBlockingDeque<>();
@@ -310,7 +311,7 @@ public class Kernel implements Closeable {
             default:
                 break;
         }
-
+        if (opcode != OPCODE_IO) ++executionTime;
     }
 
     private void interruptEnd() {
@@ -382,7 +383,7 @@ public class Kernel implements Closeable {
     /**
      * @return the current time
      */
-    public int getTime() {
+    public long getTime() {
         return time;
     }
 
@@ -400,6 +401,13 @@ public class Kernel implements Closeable {
     @Override
     public void close() {
         deviceManager.removeFinishedHandler(deviceIOFinishedHandler);
+    }
+
+    /**
+     * @return execution time
+     */
+    public long getExecutionTime() {
+        return executionTime;
     }
 
     /**

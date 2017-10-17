@@ -1,8 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
 <?import javafx.scene.canvas.Canvas?>
+<?import javafx.scene.chart.*?>
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
+<?import javafx.scene.text.Font?>
 <AnchorPane xmlns:fx="http://javafx.com/fxml/1" id="AnchorPane" prefHeight="453.0" prefWidth="674.0"
             xmlns="http://javafx.com/javafx/8" fx:controller="emuos.ui.MonitorController">
     <children>
@@ -12,18 +14,59 @@
             <tabs>
                 <Tab fx:id="overviewTab" onSelectionChanged="#handleOverviewTabSelectionChanged" text="Overview">
                     <content>
-                        <AnchorPane minHeight="0.0" minWidth="0.0" prefHeight="180.0" prefWidth="200.0">
+                        <GridPane>
+                            <columnConstraints>
+                                <ColumnConstraints hgrow="SOMETIMES" maxWidth="1.7976931348623157E308" minWidth="10.0"/>
+                                <ColumnConstraints hgrow="SOMETIMES" maxWidth="250.0" minWidth="10.0"/>
+                            </columnConstraints>
+                            <rowConstraints>
+                                <RowConstraints minHeight="10.0" vgrow="SOMETIMES"/>
+                            </rowConstraints>
                             <children>
                                 <TableView fx:id="overviewTable" layoutX="183.0" layoutY="99.0" prefHeight="200.0"
                                            prefWidth="200.0" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0"
                                            AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
                                     <columns>
                                         <TableColumn fx:id="overviewItemCol" prefWidth="191.0" text="Item"/>
-                                        <TableColumn fx:id="overviewValueCol" prefWidth="423.0" text="Value"/>
+                                        <TableColumn fx:id="overviewValueCol" prefWidth="187.0" text="Value"/>
                                     </columns>
                                 </TableView>
+                                <ScrollPane fx:id="statusScrollPane" fitToWidth="true" maxWidth="250.0"
+                                            GridPane.columnIndex="1">
+                                    <content>
+                                        <VBox fx:id="memoryStatusVBox" alignment="TOP_CENTER" minHeight="-Infinity"
+                                              minWidth="-Infinity">
+                                            <children>
+                                                <AreaChart fx:id="kernelUsageChart" alternativeColumnFillVisible="true"
+                                                           prefHeight="130.0" prefWidth="152.0" title="CPU">
+                                                    <xAxis>
+                                                        <NumberAxis animated="false" autoRanging="false" side="BOTTOM"/>
+                                                    </xAxis>
+                                                    <yAxis>
+                                                        <NumberAxis side="LEFT"/>
+                                                    </yAxis>
+                                                </AreaChart>
+                                                <AreaChart fx:id="memoryUsageChart" alternativeColumnFillVisible="true"
+                                                           prefHeight="130.0" prefWidth="152.0" title="Memory">
+                                                    <xAxis>
+                                                        <NumberAxis animated="false" autoRanging="false" side="BOTTOM"/>
+                                                    </xAxis>
+                                                    <yAxis>
+                                                        <NumberAxis side="LEFT"/>
+                                                    </yAxis>
+                                                </AreaChart>
+                                                <Canvas fx:id="memoryCanvas" height="80.0" width="156.0"/>
+                                                <Label fx:id="memoryLabel" text="Bytes/Block">
+                                                    <font>
+                                                        <Font size="14.0"/>
+                                                    </font>
+                                                </Label>
+                                            </children>
+                                        </VBox>
+                                    </content>
+                                </ScrollPane>
                             </children>
-                        </AnchorPane>
+                        </GridPane>
                     </content>
                 </Tab>
                 <Tab fx:id="processesTab" onSelectionChanged="#handleProcessesTabSelectionChanged" text="Processes">
