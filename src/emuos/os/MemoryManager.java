@@ -45,22 +45,48 @@ public class MemoryManager {
         freeSpaces.add(new Space(0, USER_SPACE_SIZE));
     }
 
-    public int alloc(int size) {
+    /**
+     * alloc memory
+     *
+     * @param size size
+     * @return address
+     */
+    public synchronized int alloc(int size) {
         return allocator.alloc(size);
     }
 
-    public void free(int address) {
+    /**
+     * free memory
+     *
+     * @param address address
+     */
+    public synchronized void free(int address) {
         allocator.free(address);
     }
 
+    /**
+     * read the value from the address
+     * @param address address
+     * @return value
+     */
     public byte read(int address) {
         return userSpace[address];
     }
 
+    /**
+     * write the value to the address
+     * @param address address
+     * @param value value
+     */
     public void write(int address, byte value) {
         userSpace[address] = value;
     }
 
+    /**
+     * read the integer value from the address
+     * @param address address
+     * @return value
+     */
     public int readInt(int address) {
         int value = 0;
         value |= userSpace[address];
@@ -70,6 +96,11 @@ public class MemoryManager {
         return value;
     }
 
+    /**
+     * write the integer value to the address
+     * @param address address
+     * @param value value
+     */
     public void writeInt(int address, int value) {
         userSpace[address] = (byte) value;
         userSpace[address + 1] = (byte) (value >>> 8);
@@ -77,6 +108,9 @@ public class MemoryManager {
         userSpace[address + 3] = (byte) (value >>> 24);
     }
 
+    /**
+     * @return true if it is all free
+     */
     public boolean isAllFree() {
         return allocatedSpaces.isEmpty();
     }
@@ -84,14 +118,14 @@ public class MemoryManager {
     /**
      * @return the allocatedSpaces
      */
-    public List<Space> getAllocatedSpaces() {
+    public synchronized List<Space> getAllocatedSpaces() {
         return allocatedSpaces;
     }
 
     /**
      * @return the freeSpaces
      */
-    public List<Space> getFreeSpaces() {
+    public synchronized List<Space> getFreeSpaces() {
         return freeSpaces;
     }
 
@@ -109,21 +143,35 @@ public class MemoryManager {
         return PCBList;
     }
 
+    /**
+     * add PCB
+     * @param PCB PCB
+     * @return true if successful
+     */
     boolean addPCB(ProcessControlBlock PCB) {
-        for (int i = 0; i < PCBList.length; ++i) {
-            if (PCBList[i] == null) {
-                PCBList[i] = PCB;
-                return true;
+        synchronized (PCBList) {
+            for (int i = 0; i < PCBList.length; ++i) {
+                if (PCBList[i] == null) {
+                    PCBList[i] = PCB;
+                    return true;
+                }
             }
         }
         return false;
     }
 
+    /**
+     * remove PCB
+     * @param PCB PCB
+     * @return true if successful
+     */
     boolean removePCB(ProcessControlBlock PCB) {
-        for (int i = 0; i < PCBList.length; ++i) {
-            if (PCBList[i] == PCB) {
-                PCBList[i] = null;
-                return true;
+        synchronized (PCBList) {
+            for (int i = 0; i < PCBList.length; ++i) {
+                if (PCBList[i] == PCB) {
+                    PCBList[i] = null;
+                    return true;
+                }
             }
         }
         return false;
@@ -134,12 +182,11 @@ public class MemoryManager {
      * @return size
      */
     public int getSpaceSize(int address) {
-        for (Space s : allocatedSpaces) {
-            if (s.startAddress == address) {
-                return s.size;
-            }
-        }
-        return -1;
+        return allocatedSpaces.stream()
+                .filter(s -> s.startAddress == address)
+                .findFirst()
+                .map(s -> s.size)
+                .orElse(-1);
     }
 
     /**
@@ -184,7 +231,7 @@ public class MemoryManager {
                             if (freeSpaceIterator.hasNext()) {
                                 Space nextFreeSpace = freeSpaceIterator.next();
                                 if (freeSpace.startAddress + freeSpace.size == nextFreeSpace.startAddress) {
-                                    freeSpace.startAddress += nextFreeSpace.size;
+                                    freeSpace.size += nextFreeSpace.size;
                                     freeSpaceIterator.remove();
                                 }
                             }

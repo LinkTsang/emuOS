@@ -19,6 +19,7 @@ import static org.junit.Assert.assertTrue;
  * @author Link
  */
 public class MemoryManagerTest {
+    private emuos.os.MemoryManager memoryManager;
 
     public MemoryManagerTest() {
     }
@@ -33,10 +34,13 @@ public class MemoryManagerTest {
 
     @Before
     public void setUp() {
+        memoryManager = new emuos.os.MemoryManager();
     }
 
     @After
     public void tearDown() {
+        checkFreeListCorrect(memoryManager);
+        assertTrue(memoryManager.isAllFree());
     }
 
     private void showMemoryUsage(emuos.os.MemoryManager manager) {
@@ -54,7 +58,7 @@ public class MemoryManagerTest {
         System.out.println("------------- ------------ ---------------");
     }
 
-    private boolean isFreeListCorrect(emuos.os.MemoryManager manager) {
+    private void checkFreeListCorrect(emuos.os.MemoryManager manager) {
         PriorityQueue<emuos.os.MemoryManager.Space> queue = new PriorityQueue<>(
                 Comparator.comparingInt(e0 -> e0.startAddress));
         Iterator<emuos.os.MemoryManager.Space> freeSpaceIterator = manager.getFreeSpaces().iterator();
@@ -66,128 +70,139 @@ public class MemoryManagerTest {
             queue.add(allocatedSpaceIterator.next());
         }
         Space prev = queue.poll();
+        int totalSize = prev.size;
         while (!queue.isEmpty()) {
             Space current = queue.poll();
-            if (prev.startAddress + prev.size != current.startAddress) {
-                return false;
-            }
+            totalSize += current.size;
+            Assert.assertEquals(prev.startAddress + prev.size, current.startAddress);
             prev = current;
         }
-        return prev.startAddress + prev.size == manager.getMaxUserSpaceSize();
+        Assert.assertEquals(manager.getMaxUserSpaceSize(), prev.startAddress + prev.size);
+        Assert.assertEquals(manager.getMaxUserSpaceSize(), totalSize);
     }
 
     @Test
     public void test0() {
-        emuos.os.MemoryManager manager = new emuos.os.MemoryManager();
-        int address0 = manager.alloc(16);
-        int address1 = manager.alloc(32);
-        int address2 = manager.alloc(16);
-        int address3 = manager.alloc(16);
-        int address4 = manager.alloc(manager.getMaxUserSpaceSize() - 80);
+        int sizeOfAddress4 = memoryManager.getMaxUserSpaceSize() - 80;
+        int address0 = memoryManager.alloc(16);
+        int address1 = memoryManager.alloc(32);
+        int address2 = memoryManager.alloc(16);
+        int address3 = memoryManager.alloc(16);
+        int address4 = memoryManager.alloc(sizeOfAddress4);
         Assert.assertEquals(0, address0);
         Assert.assertEquals(16, address1);
         Assert.assertEquals(48, address2);
         Assert.assertEquals(64, address3);
+        Assert.assertEquals(16, memoryManager.getSpaceSize(address0));
+        Assert.assertEquals(32, memoryManager.getSpaceSize(address1));
+        Assert.assertEquals(16, memoryManager.getSpaceSize(address2));
+        Assert.assertEquals(16, memoryManager.getSpaceSize(address3));
+        Assert.assertEquals(sizeOfAddress4, memoryManager.getSpaceSize(address4));
 
-        manager.free(address2);
-        assertTrue(isFreeListCorrect(manager));
-        showMemoryUsage(manager);
+        memoryManager.free(address2);
+        checkFreeListCorrect(memoryManager);
+        showMemoryUsage(memoryManager);
 
-        manager.free(address0);
-        assertTrue(isFreeListCorrect(manager));
-        showMemoryUsage(manager);
+        memoryManager.free(address0);
+        checkFreeListCorrect(memoryManager);
+        showMemoryUsage(memoryManager);
 
-        manager.free(address1);
-        assertTrue(isFreeListCorrect(manager));
-        showMemoryUsage(manager);
+        memoryManager.free(address1);
+        checkFreeListCorrect(memoryManager);
+        showMemoryUsage(memoryManager);
 
-        manager.free(address3);
-        assertTrue(isFreeListCorrect(manager));
-        showMemoryUsage(manager);
+        memoryManager.free(address3);
+        checkFreeListCorrect(memoryManager);
+        showMemoryUsage(memoryManager);
 
-        manager.free(address4);
-        assertTrue(isFreeListCorrect(manager));
-        showMemoryUsage(manager);
-
-        assertTrue(manager.isAllFree());
+        memoryManager.free(address4);
+        checkFreeListCorrect(memoryManager);
+        showMemoryUsage(memoryManager);
     }
 
     @Test
     public void testOutOfMemory() {
-        emuos.os.MemoryManager manager = new emuos.os.MemoryManager();
-        int address0 = manager.alloc(manager.getMaxUserSpaceSize() + 1);
+        int address0 = memoryManager.alloc(memoryManager.getMaxUserSpaceSize() + 1);
         Assert.assertEquals(-1, address0);
-        assertTrue(manager.isAllFree());
     }
 
     @Test
     public void test1() {
-        emuos.os.MemoryManager manager = new emuos.os.MemoryManager();
-        int address0 = manager.alloc(16);
-        int address1 = manager.alloc(32);
-        int address2 = manager.alloc(16);
-        int address3 = manager.alloc(16);
+        int address0 = memoryManager.alloc(16);
+        int address1 = memoryManager.alloc(32);
+        int address2 = memoryManager.alloc(16);
+        int address3 = memoryManager.alloc(16);
         Assert.assertEquals(0, address0);
         Assert.assertEquals(64, address3);
         Assert.assertEquals(16, address1);
         Assert.assertEquals(48, address2);
 
-        manager.free(address0);
-        manager.free(address3);
-        manager.free(address2);
-        manager.free(address1);
+        memoryManager.free(address0);
+        memoryManager.free(address3);
+        memoryManager.free(address2);
+        memoryManager.free(address1);
 
-        isFreeListCorrect(manager);
-        showMemoryUsage(manager);
-        assertTrue(manager.isAllFree());
+        checkFreeListCorrect(memoryManager);
+        showMemoryUsage(memoryManager);
     }
 
     @Test
     public void test2() {
-        emuos.os.MemoryManager manager = new emuos.os.MemoryManager();
-        int address0 = manager.alloc(16);
-        int address1 = manager.alloc(32);
-        int address2 = manager.alloc(16);
-        int address3 = manager.alloc(16);
+        int address0 = memoryManager.alloc(16);
+        int address1 = memoryManager.alloc(32);
+        int address2 = memoryManager.alloc(16);
+        int address3 = memoryManager.alloc(16);
         Assert.assertEquals(0, address0);
         Assert.assertEquals(16, address1);
         Assert.assertEquals(48, address2);
         Assert.assertEquals(64, address3);
 
-        manager.free(address3);
-        manager.free(address1);
-        manager.free(address0);
-        manager.free(address2);
+        memoryManager.free(address3);
+        memoryManager.free(address1);
+        memoryManager.free(address0);
+        memoryManager.free(address2);
 
-        isFreeListCorrect(manager);
-        showMemoryUsage(manager);
-        assertTrue(manager.isAllFree());
+        checkFreeListCorrect(memoryManager);
+        showMemoryUsage(memoryManager);
     }
 
     @Test
     public void testReadWrite() {
-        emuos.os.MemoryManager manager = new emuos.os.MemoryManager();
-        int address = manager.alloc(16);
-        manager.write(address, (byte) 42);
-        assertEquals(42, manager.read(address));
+        int address = memoryManager.alloc(16);
+        memoryManager.write(address, (byte) 42);
+        assertEquals(42, memoryManager.read(address));
 
-        manager.writeInt(address + 8, 42);
-        assertEquals(42, manager.readInt(address + 8));
+        memoryManager.writeInt(address + 8, 42);
+        assertEquals(42, memoryManager.readInt(address + 8));
 
-        manager.free(address);
+        memoryManager.free(address);
     }
 
     @Test
     public void testException() {
         try {
-            new emuos.os.MemoryManager().alloc(0);
+            memoryManager.alloc(0);
         } catch (Exception e) {
             assertTrue(e instanceof IllegalArgumentException);
         }
         try {
-            new emuos.os.MemoryManager().free(-1);
+            memoryManager.free(-1);
         } catch (Exception e) {
             assertTrue(e instanceof IllegalArgumentException);
+        }
+    }
+
+    @Test
+    public void testContinuousAlloc() {
+        int addresses[] = new int[4];
+        for (int i = 0; i < addresses.length; ++i) {
+            addresses[i] = memoryManager.alloc(16);
+        }
+        showMemoryUsage(memoryManager);
+        for (int address : addresses) {
+            memoryManager.free(address);
+            showMemoryUsage(memoryManager);
+            checkFreeListCorrect(memoryManager);
         }
     }
 }
