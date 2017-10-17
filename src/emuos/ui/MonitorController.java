@@ -16,6 +16,7 @@ import emuos.os.ProcessManager;
 import javafx.animation.Animation;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
+import javafx.application.Platform;
 import javafx.beans.property.ReadOnlyStringWrapper;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
@@ -34,6 +35,7 @@ import javafx.scene.input.MouseEvent;
 import javafx.scene.paint.Color;
 import javafx.util.Duration;
 
+import java.io.Closeable;
 import java.io.FileNotFoundException;
 import java.net.URL;
 import java.util.ArrayList;
@@ -46,19 +48,27 @@ import java.util.ResourceBundle;
  *
  * @author Link
  */
-public class MonitorController implements Initializable {
+public class MonitorController implements Initializable, Closeable {
 
     private final OverviewItem kernelTime = new OverviewItem("Kernel Time", "0");
     private final OverviewItem timeSlice = new OverviewItem("Time Slice", "");
+
+    private final OverviewItem runningProcessImage = new OverviewItem("Running Process Image", "");
     private final OverviewItem runningPID = new OverviewItem("Running PID", "");
 
     private final OverviewItem intermediateResult = new OverviewItem("Intermediate Result", "");
     private final OverviewItem runningInstruction = new OverviewItem("Running Instruction", "");
 
+    private final OverviewItem lastExitProcessImage = new OverviewItem("Last Exit Process Image", "");
+    private final OverviewItem lastExitPID = new OverviewItem("Last Exit PID", "");
+    private final OverviewItem lastExitCode = new OverviewItem("Last Exit Code", "");
+
     private final ObservableList<OverviewItem> overviewList =
             FXCollections.observableArrayList(
-                    kernelTime, timeSlice, runningPID,
-                    intermediateResult, runningInstruction);
+                    kernelTime, timeSlice,
+                    runningPID, runningProcessImage,
+                    intermediateResult, runningInstruction,
+                    lastExitPID, lastExitProcessImage, lastExitCode);
 
     private final ObservableList<ProcessManager.Snapshot> processList =
             FXCollections.observableArrayList();
@@ -95,6 +105,16 @@ public class MonitorController implements Initializable {
     private Timeline devicesTimeline;
     private Timeline diskTimeline;
     private FileTreeItem rootDir = new FileTreeItem(new FilePath("/"), new ImageView(folderIcon));
+    private Kernel.Listener intEndListener = c -> {
+        ProcessControlBlock pcb = c.getProcessManager().getRunningProcess();
+        Platform.runLater(() -> {
+            if (overviewTab.isSelected()) {
+                lastExitProcessImage.setValue(pcb.getImageFile().getPath());
+                lastExitPID.setValue(String.valueOf(pcb.getPID()));
+                lastExitCode.setValue(String.valueOf(pcb.getContext().getAX()));
+            }
+        });
+    };
 
     public MonitorController() {
         initTimeLine();
@@ -108,8 +128,10 @@ public class MonitorController implements Initializable {
         initTableView();
     }
 
+
     void init(Kernel kernel) {
         this.kernel = kernel;
+        kernel.addIntExitListener(intEndListener);
     }
 
     private void initTableView() {
@@ -160,6 +182,7 @@ public class MonitorController implements Initializable {
             kernelTime.setValue(String.valueOf(kernel.getTime()));
             timeSlice.setValue(String.valueOf(kernel.getTimeSlice()));
             ProcessControlBlock pcb = kernel.getProcessManager().getRunningProcess();
+            runningProcessImage.setValue(pcb == null ? "IDLE" : String.valueOf(pcb.getImageFile().getPath()));
             runningPID.setValue(pcb == null ? "0" : String.valueOf(pcb.getPID()));
             Kernel.Context context = kernel.snapContext();
             intermediateResult.setValue(String.valueOf(context.getAX()));
@@ -273,6 +296,11 @@ public class MonitorController implements Initializable {
         } else {
             overviewTimeline.pause();
         }
+    }
+
+    @Override
+    public void close() {
+        kernel.removeIntExitListener(intEndListener);
     }
 
     public static class OverviewItem {

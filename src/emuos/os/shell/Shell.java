@@ -12,7 +12,7 @@ import java.util.*;
 /**
  * @author Link
  */
-public class Shell {
+public class Shell implements Closeable {
     public final SPrintStream out;
     public final InputStream in;
     private final Set<ProcessControlBlock> waitingQueue = new HashSet<>();
@@ -28,19 +28,20 @@ public class Shell {
     private Handler waitProcessHandler = Handler.NULL;
     private Handler wakeProcessHandler = Handler.NULL;
     private State state = State.STOPPED;
+    private Kernel.Listener intExitListener = c -> {
+        final ProcessControlBlock pcb = c.getProcessManager().getRunningProcess();
+        synchronized (waitingQueue) {
+            if (waitingQueue.remove(pcb)) {
+                synchronized (processWaiter) {
+                    processWaiter.notify();
+                }
+            }
+        }
+    };
 
     public Shell(Kernel kernel, InputStream in, OutputStream out) {
         this.kernel = kernel;
-        kernel.setIntEndListener(c -> {
-            final ProcessControlBlock pcb = c.getProcessManager().getRunningProcess();
-            synchronized (waitingQueue) {
-                if (waitingQueue.remove(pcb)) {
-                    synchronized (processWaiter) {
-                        processWaiter.notify();
-                    }
-                }
-            }
-        });
+        kernel.addIntExitListener(intExitListener);
         this.in = in;
         this.out = new SPrintStream(out);
         loadCommandMap(this);
@@ -462,6 +463,11 @@ public class Shell {
 
     public Command getCommandHandler(String name) {
         return commandMap.get(name);
+    }
+
+    @Override
+    public void close() {
+        kernel.removeIntExitListener(intExitListener);
     }
 
     private enum State {

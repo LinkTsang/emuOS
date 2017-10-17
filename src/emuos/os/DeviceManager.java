@@ -20,8 +20,8 @@ public class DeviceManager {
     // DeviceID --> DeviceList --> Device Map
     private final Map<Integer, DeviceList> deviceListMap = new HashMap<>();
     private final BlockingQueue<ProcessControlBlock> finishedQueue = new LinkedBlockingDeque<>();
+    private final Collection<Handler> finishedHandlers = new LinkedList<>();
     private boolean running;
-    private InterruptHandler finishedHandler;
 
     public DeviceManager() {
         DeviceList deviceListA = new DeviceList('A', 2);
@@ -36,12 +36,17 @@ public class DeviceManager {
         return finishedQueue;
     }
 
-    public InterruptHandler getFinishedHandler() {
-        return finishedHandler;
+
+    public boolean addFinishedHandler(Handler handler) {
+        synchronized (finishedHandlers) {
+            return finishedHandlers.add(handler);
+        }
     }
 
-    public void setFinishedHandler(InterruptHandler handler) {
-        this.finishedHandler = handler;
+    public boolean removeFinishedHandler(Handler handler) {
+        synchronized (finishedHandlers) {
+            return finishedHandlers.remove(handler);
+        }
     }
 
     public void start() {
@@ -87,7 +92,7 @@ public class DeviceManager {
         return snapshots;
     }
 
-    public interface InterruptHandler {
+    public interface Handler {
         void handler(DeviceInfo deviceInfo);
     }
 
@@ -210,9 +215,7 @@ public class DeviceManager {
                     if (!deviceInfo.isIdle()) {
                         deviceInfo.restTime -= REST_TIME_INTERVAL;
                         if (deviceInfo.restTime <= 0) {
-                            if (finishedHandler != null) {
-                                finishedHandler.handler(deviceInfo);
-                            }
+                            finishedHandlers.forEach(handler -> handler.handler(deviceInfo));
                             finishedQueue.add(deviceInfo.getPCB());
                             deviceInfo.release();
                         }

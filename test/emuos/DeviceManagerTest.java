@@ -42,7 +42,7 @@ public class DeviceManagerTest {
     public void test() {
         Semaphore semaphore = new Semaphore(-1);
         DeviceManager deviceManager = new DeviceManager();
-        deviceManager.setFinishedHandler(deviceInfo -> {
+        deviceManager.addFinishedHandler(deviceInfo -> {
             System.out.println("Finished Interrupted: ");
             System.out.println("  PID: " + deviceInfo.getPCB().getPID());
             System.out.println("  Type: " + deviceInfo.getType());
