@@ -208,6 +208,10 @@ public class Shell implements Closeable {
             public void execute(String args) {
                 FilePath filePath = getFilePath(args);
                 try {
+                    if (args.isEmpty()) {
+                        print("Usage: create [file]");
+                        return;
+                    }
                     filePath.create();
                 } catch (IOException e) {
                     print(e.getMessage());
@@ -238,6 +242,10 @@ public class Shell implements Closeable {
         registerCommandHandler(new Command("type") {
             @Override
             public void execute(String args) {
+                if (args.isEmpty()) {
+                    print("Usage: type [file]");
+                    return;
+                }
                 FilePath filePath = getFilePath(args);
                 if (filePath.exists()) {
                     try (emuos.diskmanager.InputStream is = new emuos.diskmanager.InputStream(filePath)) {
@@ -262,6 +270,10 @@ public class Shell implements Closeable {
         registerCommandHandler(new Command("mkdir", "md") {
             @Override
             public void execute(String args) {
+                if (args.isEmpty()) {
+                    print("Usage: mkdir [file]");
+                    return;
+                }
                 FilePath filePath = getFilePath(args);
                 try {
                     filePath.mkdir();
