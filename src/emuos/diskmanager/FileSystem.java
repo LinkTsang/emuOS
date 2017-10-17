@@ -368,7 +368,7 @@ public class FileSystem {
         if (parent.isRootDir()) {
             MetaInfo metaInfo = findInRoot(filename);
             if (metaInfo == null) {
-                throw new FileNotFoundException("cannot remove `" + file.getPath() + "': No such file or directory");
+                throw new FileNotFoundException("cannot remove '" + file.getPath() + "': No such file or directory");
             }
             delete(metaInfo);
             metaInfo.name_ext[0] = '$';

@@ -218,8 +218,16 @@ public class Shell implements Closeable {
         registerCommandHandler(new Command("delete", "del") {
             @Override
             public void execute(String args) {
+                if (args.isEmpty()) {
+                    print("Usage: delete [file]");
+                    return;
+                }
                 FilePath filePath = getFilePath(args);
                 try {
+                    if (!filePath.isFile()) {
+                        print(filePath.getPath() + " is not a file.");
+                        return;
+                    }
                     filePath.delete();
                 } catch (IOException e) {
                     print(e.getMessage());
@@ -266,8 +274,40 @@ public class Shell implements Closeable {
         registerCommandHandler(new Command("rmdir", "rm") {
             @Override
             public void execute(String args) {
+                if (args.isEmpty()) {
+                    print("Usage: rmdir [file]");
+                    return;
+                }
                 FilePath filePath = getFilePath(args);
                 try {
+                    if (!filePath.isDir()) {
+                        print(filePath.getPath() + " is not a directory.");
+                        return;
+                    }
+                    if (filePath.list().length != 0) {
+                        print("Failed! " + filePath.getPath() + " is not empty.");
+                        return;
+                    }
+                    filePath.delete();
+                } catch (IOException e) {
+                    print(e.getMessage());
+                }
+            }
+        });
+
+        registerCommandHandler(new Command("deldir") {
+            @Override
+            public void execute(String args) {
+                if (args.isEmpty()) {
+                    print("Usage: deldir [file]");
+                    return;
+                }
+                FilePath filePath = getFilePath(args);
+                try {
+                    if (!filePath.isDir()) {
+                        print(filePath.getPath() + " is not a directory.");
+                        return;
+                    }
                     filePath.delete();
                 } catch (IOException e) {
                     print(e.getMessage());
