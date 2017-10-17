@@ -28,6 +28,8 @@ public class Shell implements Closeable {
     private Handler waitProcessHandler = Handler.NULL;
     private Handler wakeProcessHandler = Handler.NULL;
     private State state = State.STOPPED;
+    private Timer timer = new Timer(true);
+    private TimerTask spawnTimerTask;
     private Kernel.Listener intExitListener = c -> {
         final ProcessControlBlock pcb = c.getProcessManager().getRunningProcess();
         synchronized (waitingQueue) {
@@ -414,6 +416,59 @@ public class Shell implements Closeable {
             }
         });
 
+        registerCommandHandler(new Command("spawn") {
+            @Override
+            public void execute(String args) {
+                if (args.isEmpty()) {
+                    print("Usage: spawn { start [directory] | stop | status }");
+                    return;
+                }
+                String[] arguments = args.split("\\s+");
+                if (arguments.length == 1) {
+                    if (arguments[0].equals("stop")) {
+                        if (spawnTimerTask == null) {
+                            print("No spawning.");
+                            return;
+                        }
+                        if (spawnTimerTask.cancel()) {
+                            print("Stopped spawning.");
+                            spawnTimerTask = null;
+                        } else {
+                            print("Failed to stop spawning.");
+                        }
+                    } else if (arguments[0].equals("status")) {
+                        print(spawnTimerTask == null ? "Stopped" : "Started");
+                    } else {
+                        print("Invalid argument: " + arguments[0] + "\n"
+                                + "Usage: spawn { start [directory] | stop | status }");
+                    }
+                } else if (arguments.length == 2 && arguments[0].equals("start")) {
+                    if (spawnTimerTask != null) {
+                        print("Already spawning...");
+                        return;
+                    }
+                    String path = arguments[1];
+                    FilePath directory = getFilePath(path);
+                    try {
+                        if (!directory.isDir()) {
+                            print(directory + " is not a directory.");
+                            return;
+                        }
+                    } catch (FileNotFoundException e) {
+                        print(e.getMessage());
+                        e.printStackTrace();
+                        return;
+                    }
+                    spawnTimerTask = new ProcessProducer(kernel, directory);
+                    timer.schedule(spawnTimerTask, 0, 1000);
+                    print("Started spawning.");
+                } else {
+                    print("Invalid argument\n"
+                            + "Usage: spawn { start [directory] | stop | status }");
+                }
+            }
+        });
+
         registerCommandHandler(new Command("help") {
             @Override
             public void execute(String args) {
@@ -474,6 +529,41 @@ public class Shell implements Closeable {
         RUNNING,
         WAITING,
         STOPPED
+    }
+
+    static class ProcessProducer extends TimerTask {
+
+        private final FilePath[] executable;
+        private final Kernel kernel;
+        private final Random random = new Random();
+
+        ProcessProducer(Kernel kernel, FilePath dir) {
+            this.kernel = kernel;
+            ArrayList<FilePath> list = new ArrayList<>();
+            for (FilePath file : dir.list()) {
+                try {
+                    if (file.isFile() && file.getName().endsWith(".e")) {
+                        list.add(file);
+                    }
+                } catch (FileNotFoundException e) {
+                    e.printStackTrace();
+                }
+            }
+            executable = list.toArray(new FilePath[0]);
+        }
+
+        @Override
+        public void run() {
+            if (executable.length == 0) {
+                this.cancel();
+            }
+            if (random.nextBoolean()) return;
+            try {
+                kernel.getProcessManager().create(executable[random.nextInt(executable.length)]);
+            } catch (IOException | ProcessManager.ProcessException e) {
+                e.printStackTrace();
+            }
+        }
     }
 
     private static class SPrintStream extends PrintStream {
