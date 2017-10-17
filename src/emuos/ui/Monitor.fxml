@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
+<?import javafx.geometry.Insets?>
 <?import javafx.scene.canvas.Canvas?>
 <?import javafx.scene.chart.*?>
 <?import javafx.scene.control.*?>
@@ -55,7 +56,11 @@
                                                         <NumberAxis side="LEFT"/>
                                                     </yAxis>
                                                 </AreaChart>
-                                                <Canvas fx:id="memoryCanvas" height="80.0" width="156.0"/>
+                                                <Canvas fx:id="memoryCanvas" height="80.0" width="156.0">
+                                                    <VBox.margin>
+                                                        <Insets bottom="2.0" left="2.0" right="2.0" top="2.0"/>
+                                                    </VBox.margin>
+                                                </Canvas>
                                                 <Label fx:id="memoryLabel" text="Bytes/Block">
                                                     <font>
                                                         <Font size="14.0"/>
@@ -113,39 +118,41 @@
                 </Tab>
                 <Tab fx:id="diskTab" onSelectionChanged="#handleDiskTabSelectionChanged" text="Disk">
                     <content>
-                        <AnchorPane minHeight="0.0" minWidth="0.0">
+                        <GridPane>
+                            <columnConstraints>
+                                <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0"/>
+                                <ColumnConstraints hgrow="SOMETIMES" maxWidth="250.0" minWidth="10.0"/>
+                            </columnConstraints>
+                            <rowConstraints>
+                                <RowConstraints minHeight="10.0" vgrow="SOMETIMES"/>
+                            </rowConstraints>
                             <children>
-                                <SplitPane dividerPositions="0.7321428571428571" prefHeight="160.0" prefWidth="200.0"
-                                           AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0"
-                                           AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
-                                    <items>
-                                        <AnchorPane minHeight="0.0" minWidth="0.0" prefHeight="160.0" prefWidth="100.0">
+                                <TreeTableView fx:id="fileTreeTableView" onKeyPressed="#handleFileTreeKeyPressed"
+                                               onMouseClicked="#handleFileTreeClicked" prefHeight="200.0"
+                                               prefWidth="200.0">
+                                    <columns>
+                                        <TreeTableColumn fx:id="fileNameCol" prefWidth="100.0" text="Name"/>
+                                        <TreeTableColumn fx:id="fileSizeCol" prefWidth="75.0" text="Size"/>
+                                    </columns>
+                                </TreeTableView>
+                                <ScrollPane fitToWidth="true" maxWidth="250.0" prefViewportHeight="424.0"
+                                            prefViewportWidth="250.0" GridPane.columnIndex="1">
+                                    <content>
+                                        <VBox fx:id="diskStatusVBox" alignment="TOP_CENTER" maxWidth="250.0"
+                                              GridPane.columnIndex="1">
                                             <children>
-                                                <TreeTableView fx:id="fileTreeTableView" layoutX="57.0" layoutY="34.0"
-                                                               onKeyPressed="#handleFileTreeKeyPressed"
-                                                               onMouseClicked="#handleFileTreeClicked"
-                                                               prefHeight="200.0" prefWidth="200.0"
-                                                               AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0"
-                                                               AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
-                                                    <columns>
-                                                        <TreeTableColumn fx:id="fileNameCol" prefWidth="100.0"
-                                                                         text="Name"/>
-                                                        <TreeTableColumn fx:id="fileSizeCol" prefWidth="75.0"
-                                                                         text="Size"/>
-                                                    </columns>
-                                                </TreeTableView>
-                                            </children>
-                                        </AnchorPane>
-                                        <VBox>
-                                            <children>
-                                                <Label text="File Allocation Table:"/>
                                                 <Canvas fx:id="diskCanvas" height="182.0" width="202.0"/>
+                                                <Label text="File Allocation Table">
+                                                    <font>
+                                                        <Font size="14.0"/>
+                                                    </font>
+                                                </Label>
                                             </children>
                                         </VBox>
-                                    </items>
-                                </SplitPane>
+                                    </content>
+                                </ScrollPane>
                             </children>
-                        </AnchorPane>
+                        </GridPane>
                     </content>
                 </Tab>
             </tabs>

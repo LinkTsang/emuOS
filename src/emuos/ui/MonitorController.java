@@ -32,7 +32,6 @@ import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.input.MouseEvent;
-import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.util.Duration;
@@ -108,6 +107,7 @@ public class MonitorController implements Initializable, Closeable {
     public AreaChart<Number, Number> kernelUsageChart;
     public VBox memoryStatusVBox;
     public ScrollPane statusScrollPane;
+    public VBox diskStatusVBox;
     private Kernel kernel;
     private Timeline overviewTimeline;
     private Timeline processesTimeline;
@@ -211,10 +211,11 @@ public class MonitorController implements Initializable, Closeable {
     @Override
     public void initialize(URL url, ResourceBundle rb) {
         initTableView();
-        VBox.setVgrow(statusScrollPane, Priority.ALWAYS);
 
-        memoryCanvas.widthProperty().bind(memoryStatusVBox.widthProperty());
+        memoryCanvas.widthProperty().bind(memoryStatusVBox.widthProperty().subtract(5));
         memoryCanvas.heightProperty().bind(memoryStatusVBox.widthProperty().multiply(0.5));
+        diskCanvas.widthProperty().bind(diskStatusVBox.widthProperty().subtract(5));
+        diskCanvas.heightProperty().bind(diskStatusVBox.widthProperty().multiply(0.5));
 
         setUpChart(kernelUsageChart, kernelUsageSeries);
         setUpChart(memoryUsageChart, memoryUsageSeries);
