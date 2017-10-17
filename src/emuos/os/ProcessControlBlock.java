@@ -19,7 +19,7 @@ public class ProcessControlBlock {
     private Context context;
     private ProcessState state;
     private FilePath imageFile;
-
+    public static final ProcessControlBlock IDLE = new ProcessControlBlock(0, -1, FilePath.NULL);
     public ProcessControlBlock(int PID, int startAddress) {
         this(PID, startAddress, FilePath.NULL);
     }

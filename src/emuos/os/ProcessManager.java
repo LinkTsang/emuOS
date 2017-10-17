@@ -11,7 +11,7 @@ import emuos.os.Kernel.Context;
 import emuos.os.ProcessControlBlock.ProcessState;
 
 import java.io.IOException;
-import java.util.LinkedList;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -153,15 +153,16 @@ public class ProcessManager {
      * @return the snapshot of processes
      */
     public synchronized List<Snapshot> snap() {
-        List<Snapshot> snapshots = new LinkedList<>();
+        List<Snapshot> snapshots = new ArrayList<>();
+        snapshots.add(Snapshot.IDLE);
         if (runningProcess != null) {
-            snapshots.add(new Snapshot(runningProcess));
+            snapshots.add(new Snapshot(memoryManager, runningProcess));
         }
         for (ProcessControlBlock pcb : readyQueue) {
-            snapshots.add(new Snapshot(pcb));
+            snapshots.add(new Snapshot(memoryManager, pcb));
         }
         for (ProcessControlBlock pcb : blockedQueue) {
-            snapshots.add(new Snapshot(pcb));
+            snapshots.add(new Snapshot(memoryManager, pcb));
         }
         return snapshots;
     }
@@ -169,14 +170,24 @@ public class ProcessManager {
     /**
      * Snapshot class
      */
-    public class Snapshot {
+    public static class Snapshot {
+        static final Snapshot IDLE;
+
+        static {
+            ProcessControlBlock IDLE_PCB = ProcessControlBlock.IDLE;
+            IDLE = new Snapshot(IDLE_PCB.getPID(),
+                    IDLE_PCB.getImageFile().getPath(),
+                    IDLE_PCB.getState(),
+                    0,
+                    IDLE_PCB.getContext());
+        }
         private final int PID;
         private final String path;
         private final ProcessState status;
         private final int memorySize;
         private final Context context;
 
-        private Snapshot(ProcessControlBlock pcb) {
+        private Snapshot(MemoryManager memoryManager, ProcessControlBlock pcb) {
             this(pcb.getPID(), pcb.getImageFile().getPath(), pcb.getState(),
                     memoryManager.getSpaceSize(pcb.getStartAddress()), pcb.getContext());
         }
