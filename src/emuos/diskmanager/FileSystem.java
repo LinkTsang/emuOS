@@ -299,7 +299,6 @@ public class FileSystem {
 
     /**
      * NOTE: throw new FileAlreadyExistsException("File '" + file.getPath() + "' already exists."); ?
-     * TODO: create all intermediate directories
      *
      * @param file      file
      * @param attribute attribute
@@ -307,7 +306,21 @@ public class FileSystem {
      * @throws IOException IOException
      */
     private boolean createNewFile(FilePath file, byte attribute) throws IOException {
-        MetaInfo parent = readMetaInfo(file.getParent());
+        String[] filenames = file.getPath().split("/");
+        FilePath parentPath = new FilePath("/");
+        for (int i = 1; i < filenames.length - 1; ++i) {
+            FilePath current = new FilePath(parentPath, filenames[i]);
+            if (current.exists()) {
+                if (!current.isDir()) {
+                    throw new IOException("Error: " + current.getPath() + " is a file\n" +
+                            "Invalid path: " + file.getPath());
+                }
+            } else {
+                current.mkdir();
+            }
+            parentPath = current;
+        }
+        MetaInfo parent = readMetaInfo(parentPath.getPath());
         String filename = file.getName();
         if (parent == null) {
             throw new FileNotFoundException("Invalid path: " + file.getPath());
