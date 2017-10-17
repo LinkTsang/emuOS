@@ -393,42 +393,59 @@ public class FileSystem {
                 return;
             }
         }
-        throw new FileNotFoundException("cannot remove `" + file.getPath() + "': No such file or directory");
+        throw new FileNotFoundException("cannot remove '" + file.getPath() + "': No such file or directory");
     }
 
     public void copy(FilePath src, FilePath dest) throws IOException {
         if (!src.exists()) {
-            throw new FileNotFoundException(src.getPath());
+            throw new FileNotFoundException(src.getPath() + " is not found.");
         }
         if (exists(dest)) {
-            throw new FileAlreadyExistsException(dest.getPath());
+            throw new FileAlreadyExistsException(dest.getPath() + " already exists.");
         }
-        dest.create();
-        BufferedInputStream bis = new BufferedInputStream(new InputStream(src), BLOCK_SIZE);
-        BufferedOutputStream bos = new BufferedOutputStream(new OutputStream(dest), BLOCK_SIZE);
-        int data;
-        while ((data = bis.read()) != -1) {
-            bos.write(data);
+        if (src.isDir()) {
+            dest.mkdir();
+            for (FilePath subSource : src.list()) {
+                copy(subSource, new FilePath(dest, subSource.getName()));
+            }
+        } else if (src.isFile()) {
+            dest.create();
+            BufferedInputStream bis = new BufferedInputStream(new InputStream(src), BLOCK_SIZE);
+            BufferedOutputStream bos = new BufferedOutputStream(new OutputStream(dest), BLOCK_SIZE);
+            int data;
+            while ((data = bis.read()) != -1) {
+                bos.write(data);
+            }
+            bis.close();
+            bos.close();
         }
-        bis.close();
-        bos.close();
     }
 
     public void move(FilePath src, FilePath dest) throws IOException {
         MetaInfo sourceMetaInfo = readMetaInfo(src.getPath());
         if (sourceMetaInfo == null) {
-            throw new FileNotFoundException(src.getPath());
+            throw new FileNotFoundException(src.getPath() + " is not found.");
         }
         if (dest.exists()) {
-            throw new FileAlreadyExistsException(dest.getPath());
+            throw new FileAlreadyExistsException(dest.getPath() + " already exists.");
         }
-        dest.create();
+        if (sourceMetaInfo.isFile()) {
+            dest.create();
+        } else if (sourceMetaInfo.isDir()) {
+            dest.mkdir();
+        } else {
+            throw new IOException(src.getPath() + " is neither a file nor a directory.");
+        }
         MetaInfo targetMetaInfo = readMetaInfo(dest.getPath());
         int oldBlockIndex = targetMetaInfo.startBlockIndex;
+        targetMetaInfo.attribute = sourceMetaInfo.attribute;
+        targetMetaInfo.length = sourceMetaInfo.length;
         targetMetaInfo.startBlockIndex = sourceMetaInfo.startBlockIndex;
+        sourceMetaInfo.attribute = MetaInfo.MASK_FILE;
+        sourceMetaInfo.length = 0;
         sourceMetaInfo.startBlockIndex = (byte) oldBlockIndex;
-        writeMetaInfo(sourceMetaInfo);
         writeMetaInfo(targetMetaInfo);
+        writeMetaInfo(sourceMetaInfo);
         src.delete();
     }
 

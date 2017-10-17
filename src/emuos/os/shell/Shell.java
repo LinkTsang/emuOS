@@ -263,7 +263,23 @@ public class Shell implements Closeable {
         registerCommandHandler(new Command("copy", "cp") {
             @Override
             public void execute(String args) {
-                print("command not implemented");
+                if (args.isEmpty()) {
+                    print("Usage: copy [SOURCE] [DESTINATION]");
+                    return;
+                }
+                String[] files = args.split("\\s+");
+                if (files.length != 2) {
+                    print("Usage: copy [SOURCE] [DESTINATION]");
+                    return;
+                }
+                FilePath source = getFilePath(files[0]);
+                FilePath destination = getFilePath(files[1]);
+                try {
+                    FileSystem.getFileSystem().copy(source, destination);
+                } catch (IOException e) {
+                    print(e.getMessage());
+                    e.printStackTrace();
+                }
             }
         });
 
@@ -357,7 +373,23 @@ public class Shell implements Closeable {
         registerCommandHandler(new Command("move", "mv") {
             @Override
             public void execute(String args) {
-                print("command not implemented");
+                if (args.isEmpty()) {
+                    print("Usage: move [SOURCE] [DESTINATION]");
+                    return;
+                }
+                String[] files = args.split("\\s+");
+                if (files.length != 2) {
+                    print("Usage: copy [SOURCE] [DESTINATION]");
+                    return;
+                }
+                FilePath source = getFilePath(files[0]);
+                FilePath destination = getFilePath(files[1]);
+                try {
+                    FileSystem.getFileSystem().move(source, destination);
+                } catch (IOException e) {
+                    print(e.getMessage());
+                    e.printStackTrace();
+                }
             }
         });
 
