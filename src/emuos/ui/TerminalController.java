@@ -177,7 +177,7 @@ public class TerminalController implements Initializable {
                 });
             }
         });
-        shellThread = new Thread(shell::run);
+        shellThread = new Thread(shell::run, "Thread-Shell");
         shellThread.start();
     }
 
