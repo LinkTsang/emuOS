@@ -10,17 +10,12 @@ package emuos.compiler;
  */
 public class TinyLexer extends Lexer {
 
-    private int lineCount = 1;
-
     public TinyLexer(String input) {
         super(input);
     }
 
     public void WS() {
         while (c == ' ' || c == '\t' || c == '\n' || c == '\r') {
-            if (c == '\n') {
-                ++lineCount;
-            }
             consume();
         }
     }
@@ -41,14 +36,16 @@ public class TinyLexer extends Lexer {
 
     public Token INCREASE() {
         consume();
-        match('+');
-        return new Token(Token.Type.INCREASE, "++");
+        return match('+')
+                ? new Token(Token.Type.INCREASE, "++")
+                : new Token(Token.Type.UNKNOWN, "+");
     }
 
     public Token DECREASE() {
         consume();
-        match('-');
-        return new Token(Token.Type.DECREASE, "--");
+        return match('-')
+                ? new Token(Token.Type.DECREASE, "--")
+                : new Token(Token.Type.UNKNOWN, "-");
     }
 
     public Token INT() {
@@ -60,8 +57,16 @@ public class TinyLexer extends Lexer {
         return new Token(Token.Type.INT, buffer.toString());
     }
 
+    public Token UNKNOWN() {
+        Token token = new Token(Token.Type.UNKNOWN, String.valueOf((char) c));
+        consume();
+        return token;
+    }
+
     public Token nextToken() {
         while (c != EOF) {
+            currentBeginLine = line;
+            currentBeginColumn = column;
             switch (c) {
                 case ' ':
                 case '\t':
@@ -90,13 +95,12 @@ public class TinyLexer extends Lexer {
                     } else if (Character.isDigit(c)) {
                         return INT();
                     }
-                    throw new Error("invalid character: " + (char) c);
+                    return UNKNOWN();
             }
         }
+        currentBeginLine = line;
+        currentBeginColumn = column;
         return new Token(Token.Type.EOF, "<EOF>");
     }
 
-    public int getLineCount() {
-        return lineCount;
-    }
 }

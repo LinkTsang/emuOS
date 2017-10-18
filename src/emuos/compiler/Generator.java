@@ -50,7 +50,7 @@ public class Generator {
         write(OPCODE_DECREASE);
     }
 
-    public void io(String ID, byte time) {
+    public void io(String ID, byte time) throws GeneratorException {
         byte id;
         switch (ID) {
             case "A":
@@ -63,7 +63,7 @@ public class Generator {
                 id = 'C';
                 break;
             default:
-                throw new Error(String.format("Unsupported device ID %s.", ID));
+                throw new GeneratorException(String.format("Unsupported device ID %s.", ID));
         }
         write(OPCODE_IO);
         write(id);

@@ -52,22 +52,22 @@ public class CompilerTest {
         System.out.println(token);
 
         lexer = new TinyLexer(code);
-        assertEquals("<'x',ID>", lexer.nextToken().toString());
-        assertEquals("<'=',EQUALS>", lexer.nextToken().toString());
-        assertEquals("<'123',INT>", lexer.nextToken().toString());
-        assertEquals("<'x',ID>", lexer.nextToken().toString());
-        assertEquals("<'++',INCREASE>", lexer.nextToken().toString());
-        assertEquals("<'x',ID>", lexer.nextToken().toString());
-        assertEquals("<'--',DECREASE>", lexer.nextToken().toString());
-        assertEquals("<'!',IO_COMMAND>", lexer.nextToken().toString());
-        assertEquals("<'A',ID>", lexer.nextToken().toString());
-        assertEquals("<'6',INT>", lexer.nextToken().toString());
-        assertEquals("<'<END>',END>", lexer.nextToken().toString());
-        assertEquals("<'<EOF>',EOF>", lexer.nextToken().toString());
+        assertEquals("<'x', ID>", lexer.nextToken().toString());
+        assertEquals("<'=', EQUALS>", lexer.nextToken().toString());
+        assertEquals("<'123', INT>", lexer.nextToken().toString());
+        assertEquals("<'x', ID>", lexer.nextToken().toString());
+        assertEquals("<'++', INCREASE>", lexer.nextToken().toString());
+        assertEquals("<'x', ID>", lexer.nextToken().toString());
+        assertEquals("<'--', DECREASE>", lexer.nextToken().toString());
+        assertEquals("<'!', IO_COMMAND>", lexer.nextToken().toString());
+        assertEquals("<'A', ID>", lexer.nextToken().toString());
+        assertEquals("<'6', INT>", lexer.nextToken().toString());
+        assertEquals("<'<END>', END>", lexer.nextToken().toString());
+        assertEquals("<'<EOF>', EOF>", lexer.nextToken().toString());
     }
 
     @Test
-    public void testParser() {
+    public void testParser() throws GeneratorException, TokenMismatchException, UnexpectedTokenException {
         TinyLexer lexer = new TinyLexer(code);
         Generator gen = new Generator();
         TinyParser parser = new TinyParser(lexer, gen);
@@ -75,10 +75,37 @@ public class CompilerTest {
     }
 
     @Test
-    public void testCompiler() {
+    public void testCompiler() throws GeneratorException, ParseException {
         TinyCompiler compiler = new TinyCompiler();
         compiler.compile(code);
         byte[] byteCode = compiler.getByteCode();
         System.out.println(Arrays.toString(byteCode));
+    }
+
+    @Test
+    public void testParseException() throws GeneratorException, TokenMismatchException {
+        TinyCompiler compiler = new TinyCompiler();
+        try {
+            compiler.compile("x = 4\n" +
+                    "x++          #");
+            Assert.fail("expected<UnexpectedTokenException>");
+        } catch (UnexpectedTokenException e) {
+            assertEquals(2, e.getLine());
+            assertEquals(14, e.getColumn());
+            assertEquals("#", e.getToken().text);
+        }
+    }
+
+    @Test
+    public void testUnexpectedTokenExpection() throws GeneratorException, TokenMismatchException {
+        TinyCompiler compiler = new TinyCompiler();
+        try {
+            compiler.compile("test");
+            Assert.fail("expected<UnexpectedTokenException>");
+        } catch (UnexpectedTokenException e) {
+            assertEquals(1, e.getLine());
+            assertEquals(5, e.getColumn());
+            assertEquals("<EOF>", e.getToken().text);
+        }
     }
 }

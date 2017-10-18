@@ -19,7 +19,7 @@ public class TinyParser extends Parser {
         this.generator = generator;
     }
 
-    public void program() throws Error {
+    public void program() throws UnexpectedTokenException, GeneratorException, TokenMismatchException {
         while (LA(1) != Type.EOF) {
             switch (LA(1)) {
                 case ID:
@@ -34,7 +34,8 @@ public class TinyParser extends Parser {
                             decrease();
                             break;
                         default:
-                            throw new Error("Line: " + input.getLineCount() + ": invalid token: " + LT(2).toString());
+                            consume();
+                            throw new UnexpectedTokenException(getCurrentBeginLine(), getCurrentBeginColumn(), LT(1));
                     }
                     break;
                 case IO_COMMAND:
@@ -43,38 +44,40 @@ public class TinyParser extends Parser {
                 case END:
                     end();
                     return;
+                default:
+                    throw new UnexpectedTokenException(getCurrentBeginLine(), getCurrentBeginColumn(), LT(1));
             }
         }
-        throw new Error("excepting 'end'; found" + LA(1));
+        throw new TokenMismatchException(getCurrentBeginLine(), getCurrentBeginColumn(), Type.END, LT(1));
     }
 
-    protected void assignment() {
+    private void assignment() throws TokenMismatchException {
         match(Type.ID);
         match(Type.EQUALS);
         Token valueToken = match(Type.INT);
         generator.assign(Byte.valueOf(valueToken.text));
     }
 
-    protected void increase() {
+    private void increase() throws TokenMismatchException {
         match(Type.ID);
         match(Type.INCREASE);
         generator.increase();
     }
 
-    protected void decrease() {
+    private void decrease() throws TokenMismatchException {
         match(Type.ID);
         match(Type.DECREASE);
         generator.decrease();
     }
 
-    protected void io_command() {
+    private void io_command() throws TokenMismatchException, GeneratorException {
         match(Type.IO_COMMAND);
         Token idToken = match(Type.ID);
         Token timeToken = match(Type.INT);
         generator.io(idToken.text, Byte.valueOf(timeToken.text));
     }
 
-    protected void end() {
+    private void end() throws TokenMismatchException {
         match(Type.END);
         generator.end();
     }

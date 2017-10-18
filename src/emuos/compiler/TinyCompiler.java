@@ -13,7 +13,7 @@ public class TinyCompiler {
     public TinyCompiler() {
     }
 
-    public void compile(String code) {
+    public void compile(String code) throws UnexpectedTokenException, TokenMismatchException, GeneratorException {
         TinyLexer lexer = new TinyLexer(code);
         Generator gen = new Generator();
         TinyParser parser = new TinyParser(lexer, gen);

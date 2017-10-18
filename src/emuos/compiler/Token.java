@@ -21,7 +21,7 @@ public class Token {
     @Override
     public String toString() {
         String tname = type.name();
-        return "<'" + text + "'," + tname + ">";
+        return "<'" + text + "', " + tname + ">";
     }
 
     public enum Type {
@@ -34,6 +34,7 @@ public class Token {
         INT,
         IO_COMMAND,
         END,
-        NUMBER
+        NUMBER,
+        UNKNOWN
     }
 }

@@ -1,8 +1,6 @@
 package emuos.ui;
 
-import emuos.compiler.Generator;
-import emuos.compiler.TinyLexer;
-import emuos.compiler.TinyParser;
+import emuos.compiler.*;
 import emuos.diskmanager.FilePath;
 import emuos.diskmanager.FileSystem;
 import emuos.diskmanager.InputStream;
@@ -85,7 +83,7 @@ public class EditorController implements Initializable {
         TinyParser parser = new TinyParser(lexer, gen);
         try {
             parser.program();
-        } catch (Error e) {
+        } catch (ParseException | GeneratorException e) {
             messageLabel.setText(e.getMessage());
             return;
         }
