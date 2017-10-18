@@ -28,7 +28,7 @@ public class Shell implements Closeable {
     private Handler waitProcessHandler = Handler.NULL;
     private Handler wakeProcessHandler = Handler.NULL;
     private State state = State.STOPPED;
-    private Timer timer = new Timer(true);
+    private Timer timer = new Timer("Timer-Shell", true);
     private TimerTask spawnTimerTask;
     private Kernel.Listener intExitListener = c -> {
         final ProcessControlBlock pcb = c.getProcessManager().getRunningProcess();

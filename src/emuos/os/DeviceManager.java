@@ -16,7 +16,7 @@ public class DeviceManager {
     // time in milliseconds between successive task executions.
     private static final int PERIOD = 1000;
     private static final int REST_TIME_INTERVAL = 1;
-    private final Timer timer = new Timer(true);
+    private final Timer timer = new Timer("Timer-DeviceManager", true);
     // DeviceID --> DeviceList --> Device Map
     private final Map<Integer, DeviceList> deviceListMap = new HashMap<>();
     private final BlockingQueue<ProcessControlBlock> finishedQueue = new LinkedBlockingDeque<>();

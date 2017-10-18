@@ -26,7 +26,7 @@ public class Kernel implements Closeable {
     private final DeviceManager deviceManager = new DeviceManager();
     private final MemoryManager memoryManager = new MemoryManager();
     private final ProcessManager processManager = new ProcessManager(this, memoryManager);
-    private final Timer timer = new Timer(true);
+    private final Timer timer = new Timer("Timer-Kernel", true);
     private final Collection<Listener> beginOperationListeners = new LinkedList<>();
     private final Collection<Listener> intExitListeners = new LinkedList<>();
     private final Collection<Listener> intTimeSliceListeners = new LinkedList<>();
