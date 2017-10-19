@@ -491,6 +491,26 @@ public class Shell implements Closeable {
             }
         });
 
+        registerCommandHandler(new Command("ps") {
+            @Override
+            public void execute(String args) {
+                print(String.format("%-8s%-10s%-8s%-8s%s\n",
+                        "PID",
+                        "STATUS",
+                        "MEM",
+                        "PC",
+                        "IMAGE"));
+                kernel.getProcessManager().snap()
+                        .forEach(snapshot -> print(String.format(
+                                "%-8d%-10s%-8d%-8d%s\n",
+                                snapshot.getPID(),
+                                snapshot.getStatus(),
+                                snapshot.getMemorySize(),
+                                snapshot.getPC(),
+                                snapshot.getPath())));
+            }
+        });
+
         registerCommandHandler(new Command("bg") {
             @Override
             public void execute(String args) {
