@@ -456,6 +456,10 @@ public class Shell implements Closeable {
                 FilePath file = getFilePath(args);
                 try {
                     ProcessControlBlock pcb = kernel.getProcessManager().create(file);
+                    if (pcb == null) {
+                        print("Failed to create the process!");
+                        return;
+                    }
                     synchronized (waitingQueue) {
                         waitingQueue.add(pcb);
                     }
