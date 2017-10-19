@@ -125,8 +125,13 @@ public class Shell implements Closeable {
             showPrompt();
             out.setDirty(false);
             waitInputHandler.handle();
-
-            String commandLine = scanner.nextLine();
+            String commandLine = null;
+            try {
+                commandLine = scanner.nextLine();
+            } catch (NoSuchElementException ignored) {
+                stop();
+                break;
+            }
             if (commandLine.isEmpty()) continue;
             commandHistory.add(commandLine);
             String[] args = commandLine.split("\\s+", 2);
@@ -137,7 +142,6 @@ public class Shell implements Closeable {
             } else {
                 handler.execute(args.length == 2 ? args[1] : "");
             }
-
             if (out.isDirty()) {
                 out.println();
             }

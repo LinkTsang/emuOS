@@ -67,6 +67,9 @@ public class TerminalController implements Initializable {
     }
 
     private void handleAppClose() {
+        if (monitorStage != null && monitorStage.isShowing()) {
+            monitorStage.close();
+        }
         if (shellThread.isAlive()) {
             shell.stop();
             shellThread.interrupt();
@@ -127,13 +130,8 @@ public class TerminalController implements Initializable {
         shell.setWakeProcessHandler(() -> Platform.runLater(() ->
                 inputArea.setEditable(true)
         ));
-        shell.setClearHandler(() -> Platform.runLater(() ->
-                inputArea.clear()
-        ));
-        shell.setExitHandler(() -> {
-            shell.stop();
-            Platform.runLater(this::handleAppClose);
-        });
+        shell.setClearHandler(() -> Platform.runLater(inputArea::clear));
+        shell.setExitHandler(() -> Platform.runLater(this::handleAppClose));
         shell.registerCommandHandler(new Command("edit") {
             @Override
             public void execute(String args) {
