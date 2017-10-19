@@ -29,7 +29,7 @@
                                            AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
                                     <columns>
                                         <TableColumn fx:id="overviewItemCol" prefWidth="191.0" text="Item"/>
-                                        <TableColumn fx:id="overviewValueCol" prefWidth="187.0" text="Value"/>
+                                        <TableColumn fx:id="overviewValueCol" prefWidth="232.0" text="Value"/>
                                     </columns>
                                 </TableView>
                                 <ScrollPane fx:id="statusScrollPane" fitToWidth="true" maxWidth="250.0"
@@ -128,11 +128,11 @@
                             </rowConstraints>
                             <children>
                                 <TreeTableView fx:id="fileTreeTableView" onKeyPressed="#handleFileTreeKeyPressed"
-                                               onMouseClicked="#handleFileTreeClicked" prefHeight="200.0"
-                                               prefWidth="200.0">
+                                               prefHeight="200.0" prefWidth="200.0">
                                     <columns>
-                                        <TreeTableColumn fx:id="fileNameCol" prefWidth="100.0" text="Name"/>
-                                        <TreeTableColumn fx:id="fileSizeCol" prefWidth="75.0" text="Size"/>
+                                        <TreeTableColumn fx:id="fileNameCol" prefWidth="200.0" text="Name"/>
+                                        <TreeTableColumn fx:id="fileSizeCol" minWidth="0.0" prefWidth="223.0"
+                                                         text="Size"/>
                                     </columns>
                                 </TreeTableView>
                                 <ScrollPane fitToWidth="true" maxWidth="250.0" prefViewportHeight="424.0"

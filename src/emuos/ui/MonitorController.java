@@ -31,7 +31,6 @@ import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.input.KeyEvent;
-import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.util.Duration;
@@ -39,7 +38,7 @@ import javafx.util.Duration;
 import java.io.Closeable;
 import java.io.FileNotFoundException;
 import java.net.URL;
-import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.ResourceBundle;
@@ -113,8 +112,8 @@ public class MonitorController implements Initializable, Closeable {
     private Timeline processesTimeline;
     private Timeline devicesTimeline;
     private Timeline diskTimeline;
-    private FileTreeItem rootDir = new FileTreeItem(new FilePath("/"), new ImageView(folderIcon));
-    private Kernel.Listener intEndListener = c -> {
+    private final FileTreeItem rootDir = new FileTreeItem(new FilePath("/"), new ImageView(folderIcon));
+    private final Kernel.Listener intEndListener = c -> {
         ProcessControlBlock pcb = c.getProcessManager().getRunningProcess();
         Platform.runLater(() -> {
             if (overviewTab.isSelected()) {
@@ -124,15 +123,42 @@ public class MonitorController implements Initializable, Closeable {
             }
         });
     };
+    private long lastKernelTime = 0;
+    private long lastKernelExecutionTime = 0;
+    private double lastKernelUsageRate = 0.0;
+    private int kernelUsageUpdateCounter = 0;
 
     public MonitorController() {
         initTimeLine();
     }
 
-    private long lastKernelTime = 0;
-    private long lastKernelExecutionTime = 0;
-    private double lastKernelUsageRate = 0.0;
-    private int kernelUsageUpdateCounter = 0;
+    private static void setUpChart(AreaChart<Number, Number> chart, XYChart.Series<Number, Number> series) {
+        for (int i = 0; i < 30; ++i) {
+            series.getData().add(new XYChart.Data<>(i, Math.random()));
+        }
+        NumberAxis xAxis = (NumberAxis) chart.getXAxis();
+        chart.getXAxis().setTickLabelsVisible(false);
+        chart.getXAxis().setAutoRanging(false);
+        xAxis.setLowerBound(0);
+        xAxis.setUpperBound(29);
+        chart.setAnimated(false);
+        chart.getData().add(series);
+    }
+
+    private static void updateSeries(XYChart.Series<Number, Number> series, Number value) {
+        ObservableList<XYChart.Data<Number, Number>> list = series.getData();
+        Iterator<XYChart.Data<Number, Number>> itr = list.iterator();
+        if (itr.hasNext()) {
+            XYChart.Data<Number, Number> prev = itr.next();
+            XYChart.Data<Number, Number> current = prev;
+            while (itr.hasNext()) {
+                current = itr.next();
+                prev.setYValue(current.getYValue());
+                prev = current;
+            }
+            current.setYValue(value);
+        }
+    }
 
     private void initTableView() {
         overviewTable.setItems(overviewList);
@@ -171,38 +197,9 @@ public class MonitorController implements Initializable, Closeable {
             }
             return new ReadOnlyStringWrapper();
         });
-        fileTreeTableView.setRoot(rootDir);
         rootDir.setExpanded(true);
-        fileTreeTableView.getColumns().setAll(fileNameCol, fileSizeCol);
+        fileTreeTableView.setRoot(rootDir);
         fileTreeTableView.refresh();
-    }
-
-    private static void setUpChart(AreaChart<Number, Number> chart, XYChart.Series<Number, Number> series) {
-        for (int i = 0; i < 30; ++i) {
-            series.getData().add(new XYChart.Data<>(i, Math.random()));
-        }
-        NumberAxis xAxis = (NumberAxis) chart.getXAxis();
-        chart.getXAxis().setTickLabelsVisible(false);
-        chart.getXAxis().setAutoRanging(false);
-        xAxis.setLowerBound(0);
-        xAxis.setUpperBound(29);
-        chart.setAnimated(false);
-        chart.getData().add(series);
-    }
-
-    private static void updateSeries(XYChart.Series<Number, Number> series, Number value) {
-        ObservableList<XYChart.Data<Number, Number>> list = series.getData();
-        Iterator<XYChart.Data<Number, Number>> itr = list.iterator();
-        if (itr.hasNext()) {
-            XYChart.Data<Number, Number> prev = itr.next();
-            XYChart.Data<Number, Number> current = prev;
-            while (itr.hasNext()) {
-                current = itr.next();
-                prev.setYValue(current.getYValue());
-                prev = current;
-            }
-            current.setYValue(value);
-        }
     }
 
     /**
@@ -273,7 +270,10 @@ public class MonitorController implements Initializable, Closeable {
         }));
         devicesTimeline.setCycleCount(Animation.INDEFINITE);
 
-        diskTimeline = new Timeline(new KeyFrame(Duration.millis(1000), ae -> renderDiskMap()));
+        diskTimeline = new Timeline(new KeyFrame(Duration.millis(1000), ae -> {
+            renderDiskMap();
+            rootDir.refresh();
+        }));
         diskTimeline.setCycleCount(Animation.INDEFINITE);
     }
 
@@ -296,7 +296,6 @@ public class MonitorController implements Initializable, Closeable {
     public void handleDiskTabSelectionChanged(Event event) {
         if (diskTab.isSelected()) {
             renderDiskMap();
-            fileTreeTableView.refresh();
             diskTimeline.play();
         } else {
             diskTimeline.pause();
@@ -354,13 +353,10 @@ public class MonitorController implements Initializable, Closeable {
         allocatedSpaces.forEach(drawBlock);
     }
 
-    public void handleFileTreeClicked(MouseEvent mouseEvent) {
-    }
-
     public void handleFileTreeKeyPressed(KeyEvent keyEvent) {
         switch (keyEvent.getCode()) {
             case F5: {
-                refreshDiskTab();
+                rootDir.refresh();
             }
             break;
             case SPACE:
@@ -371,21 +367,6 @@ public class MonitorController implements Initializable, Closeable {
             }
             break;
         }
-    }
-
-    private void refreshDiskTab() {
-        renderDiskMap();
-        FileTreeItem item = (FileTreeItem) fileTreeTableView.getSelectionModel().getSelectedItem();
-        if (item == null) return;
-        FilePath file = item.getValue();
-        try {
-            if (file.isDir() && file.list() != null) {
-                item.invalidate();
-            }
-        } catch (FileNotFoundException e) {
-            e.printStackTrace();
-        }
-        item.loadChildren();
     }
 
     public void handleOverviewTabSelectionChanged(Event event) {
@@ -402,8 +383,8 @@ public class MonitorController implements Initializable, Closeable {
     }
 
     public static class OverviewItem {
-        private StringProperty name = new SimpleStringProperty(this, "name");
-        private StringProperty value = new SimpleStringProperty(this, "value");
+        private final StringProperty name = new SimpleStringProperty(this, "name");
+        private final StringProperty value = new SimpleStringProperty(this, "value");
 
         OverviewItem(String name, String value) {
             setName(name);
@@ -442,23 +423,12 @@ public class MonitorController implements Initializable, Closeable {
             super(path, folderIcon);
         }
 
-        void invalidate() {
-            childrenLoaded = false;
-        }
-
         void loadChildren() {
             FilePath filePath = getValue();
-            List<TreeItem<FilePath>> children = new ArrayList<>();
+            ObservableList<TreeItem<FilePath>> children = super.getChildren();
             for (FilePath f : filePath.list()) {
-                Image image = null;
-                try {
-                    image = f.isDir() ? folderIcon : fileIcon;
-                } catch (FileNotFoundException e) {
-                    e.printStackTrace();
-                }
-                children.add(new FileTreeItem(f, new ImageView(image)));
+                children.add(createFileTreeItem(f));
             }
-            super.getChildren().setAll(children);
             fileTreeTableView.refresh();
         }
 
@@ -484,6 +454,41 @@ public class MonitorController implements Initializable, Closeable {
             childrenLoaded = true;
             loadChildren();
             return super.getChildren();
+        }
+
+        void refresh() {
+            ObservableList<TreeItem<FilePath>> children = getChildren();
+            Iterator<TreeItem<FilePath>> iterator = children.iterator();
+            while (iterator.hasNext()) {
+                FileTreeItem current = (FileTreeItem) iterator.next();
+                FilePath file = current.getValue();
+                try {
+                    if (file.isDir()) {
+                        current.refresh();
+                    }
+                } catch (FileNotFoundException ignored) {
+                    iterator.remove();
+                }
+            }
+            FilePath parent = getValue();
+            FilePath[] updatedFiles = parent.list();
+            Arrays.stream(updatedFiles)
+                    .filter(file -> children.stream()
+                            .noneMatch(filePathTreeItem -> filePathTreeItem.getValue().equals(file)))
+                    .forEach(file -> children.add(createFileTreeItem(file)));
+        }
+
+        private FileTreeItem createFileTreeItem(FilePath file) {
+            Image image = null;
+            try {
+                image = file.isDir() ? folderIcon : fileIcon;
+            } catch (FileNotFoundException e) {
+                e.printStackTrace();
+            }
+            FileTreeItem fileTreeItem = new FileTreeItem(file, new ImageView(image));
+            FilePath[] filePaths = file.list();
+            fileTreeItem.setExpanded(filePaths != null && filePaths.length == 0);
+            return fileTreeItem;
         }
     }
 }

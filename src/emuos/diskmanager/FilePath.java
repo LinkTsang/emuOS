@@ -49,6 +49,7 @@ public class FilePath {
     }
 
     public String getName() {
+        if (path.equals("/")) return "/";
         int index = path.lastIndexOf(separatorChar);
         return path.substring(index + 1, path.length());
     }
