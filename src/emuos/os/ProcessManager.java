@@ -49,6 +49,9 @@ public class ProcessManager {
     public synchronized ProcessControlBlock create(FilePath imageFile) throws IOException, ProcessException {
         if (!imageFile.exists() || !imageFile.isFile()) return null;
         int imageSize = imageFile.size();
+        if (imageSize == 0) {
+            throw new ProcessException("Create Process Failed: The image file \"" + imageFile.getPath() + "\" is empty.");
+        }
 
         int address = memoryManager.alloc(imageSize);
         if (address < 0) {
@@ -181,6 +184,7 @@ public class ProcessManager {
                     0,
                     IDLE_PCB.getContext());
         }
+
         private final int PID;
         private final String path;
         private final ProcessState status;
