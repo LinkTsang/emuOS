@@ -35,7 +35,6 @@ import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.util.Duration;
 
-import java.io.Closeable;
 import java.io.FileNotFoundException;
 import java.net.URL;
 import java.util.Arrays;
@@ -50,7 +49,7 @@ import java.util.function.Consumer;
  *
  * @author Link
  */
-public class MonitorController implements Initializable, Closeable {
+public class MonitorController implements Initializable {
 
     private static final int MEMORY_USAGE_VIEW_COL_COUNT = 16;
     private static final int MEMORY_USAGE_VIEW_ROW_COUNT = MEMORY_USAGE_VIEW_COL_COUNT / 2;
@@ -78,8 +77,19 @@ public class MonitorController implements Initializable, Closeable {
     private final XYChart.Series<Number, Number> memoryUsageSeries = new XYChart.Series<>();
     private final Image folderIcon = new Image(getClass().getResourceAsStream("folder.png"));
     private final Image fileIcon = new Image(getClass().getResourceAsStream("file.png"));
+    private final FileTreeItem rootDir = new FileTreeItem(new FilePath("/"), new ImageView(folderIcon));
     public TabPane tabPane;
     public Tab overviewTab;
+    private final Kernel.Listener intEndListener = c -> {
+        ProcessControlBlock pcb = c.getProcessManager().getRunningProcess();
+        Platform.runLater(() -> {
+            if (overviewTab.isSelected()) {
+                lastExitProcessImage.setValue(pcb.getImageFile().getPath());
+                lastExitPID.setValue(String.valueOf(pcb.getPID()));
+                lastExitCode.setValue(String.valueOf(pcb.getContext().getAX()));
+            }
+        });
+    };
     public Tab processesTab;
     public Tab devicesTab;
     public Tab diskTab;
@@ -112,17 +122,6 @@ public class MonitorController implements Initializable, Closeable {
     private Timeline processesTimeline;
     private Timeline devicesTimeline;
     private Timeline diskTimeline;
-    private final FileTreeItem rootDir = new FileTreeItem(new FilePath("/"), new ImageView(folderIcon));
-    private final Kernel.Listener intEndListener = c -> {
-        ProcessControlBlock pcb = c.getProcessManager().getRunningProcess();
-        Platform.runLater(() -> {
-            if (overviewTab.isSelected()) {
-                lastExitProcessImage.setValue(pcb.getImageFile().getPath());
-                lastExitPID.setValue(String.valueOf(pcb.getPID()));
-                lastExitCode.setValue(String.valueOf(pcb.getContext().getAX()));
-            }
-        });
-    };
     private long lastKernelTime = 0;
     private long lastKernelExecutionTime = 0;
     private double lastKernelUsageRate = 0.0;
@@ -160,48 +159,6 @@ public class MonitorController implements Initializable, Closeable {
         }
     }
 
-    private void initTableView() {
-        overviewTable.setItems(overviewList);
-        overviewItemCol.setCellValueFactory(new PropertyValueFactory<>("name"));
-        overviewValueCol.setCellValueFactory(new PropertyValueFactory<>("value"));
-
-        processesTable.setItems(processList);
-        processPIDCol.setCellValueFactory(new PropertyValueFactory<>("PID"));
-        processPathCol.setCellValueFactory(new PropertyValueFactory<>("path"));
-        processStatusCol.setCellValueFactory(new PropertyValueFactory<>("status"));
-        processMemoryCol.setCellValueFactory(new PropertyValueFactory<>("memorySize"));
-        processPCCol.setCellValueFactory(new PropertyValueFactory<>("PC"));
-
-        deviceIDCol.setCellValueFactory(new PropertyValueFactory<>("ID"));
-        deviceStatusCol.setCellValueFactory(new PropertyValueFactory<>("Status"));
-        devicePIDCol.setCellValueFactory(new PropertyValueFactory<>("PID"));
-        devicesTable.setItems(deviceList);
-
-        fileNameCol.setCellValueFactory(param -> {
-            TreeItem<FilePath> item = param.getValue();
-            return item == null
-                    ? new ReadOnlyStringWrapper()
-                    : new ReadOnlyStringWrapper(item.getValue().getName());
-        });
-        fileSizeCol.setCellValueFactory(param -> {
-            TreeItem<FilePath> item = param.getValue();
-            if (item == null) return new ReadOnlyStringWrapper();
-            FilePath file = item.getValue();
-            try {
-                if (file.isFile()) {
-                    int size = FileSystem.getFileSystem().getSize(file);
-                    return new ReadOnlyStringWrapper(String.format("%d B", size));
-                }
-            } catch (FileNotFoundException e) {
-                e.printStackTrace();
-            }
-            return new ReadOnlyStringWrapper();
-        });
-        rootDir.setExpanded(true);
-        fileTreeTableView.setRoot(rootDir);
-        fileTreeTableView.refresh();
-    }
-
     /**
      * Initializes the controller class.
      */
@@ -220,7 +177,6 @@ public class MonitorController implements Initializable, Closeable {
 
     void init(Kernel kernel) {
         this.kernel = kernel;
-        kernel.addIntExitListener(intEndListener);
         memoryLabel.setText(String.format("%.0f Bytes/Block",
                 kernel.getMemoryManager().getMaxUserSpaceSize() * 1.0 / MEMORY_USAGE_VIEW_TOTAL_COUNT));
     }
@@ -277,11 +233,37 @@ public class MonitorController implements Initializable, Closeable {
         diskTimeline.setCycleCount(Animation.INDEFINITE);
     }
 
+    void handleHidden() {
+        kernel.removeIntExitListener(intEndListener);
+        overviewTimeline.stop();
+        processesTimeline.stop();
+        devicesTimeline.stop();
+        diskTimeline.stop();
+        rootDir.getChildren().clear();
+    }
+
+    void handleShown() {
+        kernel.addIntExitListener(intEndListener);
+        SingleSelectionModel<Tab> selectionModel = tabPane.getSelectionModel();
+        selectionModel.selectLast();
+        selectionModel.selectFirst();
+        rootDir.refresh();
+        rootDir.setExpanded(true);
+    }
+
+    public void handleOverviewTabSelectionChanged(Event event) {
+        if (overviewTab.isSelected()) {
+            overviewTimeline.play();
+        } else {
+            overviewTimeline.stop();
+        }
+    }
+
     public void handleProcessesTabSelectionChanged(Event event) {
         if (processesTab.isSelected()) {
             processesTimeline.play();
         } else {
-            processesTimeline.pause();
+            processesTimeline.stop();
         }
     }
 
@@ -289,42 +271,79 @@ public class MonitorController implements Initializable, Closeable {
         if (devicesTab.isSelected()) {
             devicesTimeline.play();
         } else {
-            devicesTimeline.pause();
+            devicesTimeline.stop();
         }
     }
 
     public void handleDiskTabSelectionChanged(Event event) {
         if (diskTab.isSelected()) {
+            fileTreeTableView.refresh();
             renderDiskMap();
             diskTimeline.play();
         } else {
-            diskTimeline.pause();
+            diskTimeline.stop();
         }
     }
 
-    private void renderDiskMap() {
-        GraphicsContext context = diskCanvas.getGraphicsContext2D();
-        context.clearRect(0, 0, diskCanvas.getWidth(), diskCanvas.getHeight());
-        FileSystem fs = FileSystem.getFileSystem();
-        final int col = 16;
-        final double size = diskCanvas.getWidth() / col;
-        double x = 0, y = 0, length = size * 0.9;
-        final double space = size * 0.1;
-        for (int i = 0; i < 64 * 2; ++i) {
-            context.setFill(fs.read(i) == 0 ? Color.LIGHTGREEN : Color.GREEN);
-            context.fillRect(x, y, length, length);
-            x += length + space;
-            if (i % col == col - 1) {
-                x = 0;
-                y += length + space;
+    public void handleFileTreeKeyPressed(KeyEvent keyEvent) {
+        switch (keyEvent.getCode()) {
+            case F5: {
+                rootDir.refresh();
             }
+            break;
+            case SPACE:
+            case ENTER: {
+                FileTreeItem item = (FileTreeItem) fileTreeTableView.getSelectionModel().getSelectedItem();
+                if (item == null) return;
+                item.setExpanded(!item.isExpanded());
+            }
+            break;
         }
+    }
+
+    private void initTableView() {
+        overviewTable.setItems(overviewList);
+        overviewItemCol.setCellValueFactory(new PropertyValueFactory<>("name"));
+        overviewValueCol.setCellValueFactory(new PropertyValueFactory<>("value"));
+
+        processesTable.setItems(processList);
+        processPIDCol.setCellValueFactory(new PropertyValueFactory<>("PID"));
+        processPathCol.setCellValueFactory(new PropertyValueFactory<>("path"));
+        processStatusCol.setCellValueFactory(new PropertyValueFactory<>("status"));
+        processMemoryCol.setCellValueFactory(new PropertyValueFactory<>("memorySize"));
+        processPCCol.setCellValueFactory(new PropertyValueFactory<>("PC"));
+
+        deviceIDCol.setCellValueFactory(new PropertyValueFactory<>("ID"));
+        deviceStatusCol.setCellValueFactory(new PropertyValueFactory<>("Status"));
+        devicePIDCol.setCellValueFactory(new PropertyValueFactory<>("PID"));
+        devicesTable.setItems(deviceList);
+
+        fileNameCol.setCellValueFactory(param -> {
+            TreeItem<FilePath> item = param.getValue();
+            return item == null
+                    ? new ReadOnlyStringWrapper()
+                    : new ReadOnlyStringWrapper(item.getValue().getName());
+        });
+        fileSizeCol.setCellValueFactory(param -> {
+            TreeItem<FilePath> item = param.getValue();
+            if (item == null) return new ReadOnlyStringWrapper();
+            FilePath file = item.getValue();
+            try {
+                if (file.isFile()) {
+                    int size = FileSystem.getFileSystem().getSize(file);
+                    return new ReadOnlyStringWrapper(String.format("%d B", size));
+                }
+            } catch (FileNotFoundException e) {
+                e.printStackTrace();
+            }
+            return new ReadOnlyStringWrapper();
+        });
+        fileTreeTableView.setRoot(rootDir);
     }
 
     private void renderMemoryMap() {
         GraphicsContext context = memoryCanvas.getGraphicsContext2D();
         context.clearRect(0, 0, memoryCanvas.getWidth(), memoryCanvas.getHeight());
-        FileSystem fs = FileSystem.getFileSystem();
         double size = memoryCanvas.getWidth() / MEMORY_USAGE_VIEW_COL_COUNT;
         double space = size * 0.1, blockSize = size * 0.9;
 
@@ -353,33 +372,23 @@ public class MonitorController implements Initializable, Closeable {
         allocatedSpaces.forEach(drawBlock);
     }
 
-    public void handleFileTreeKeyPressed(KeyEvent keyEvent) {
-        switch (keyEvent.getCode()) {
-            case F5: {
-                rootDir.refresh();
+    private void renderDiskMap() {
+        GraphicsContext context = diskCanvas.getGraphicsContext2D();
+        context.clearRect(0, 0, diskCanvas.getWidth(), diskCanvas.getHeight());
+        FileSystem fs = FileSystem.getFileSystem();
+        final int col = 16;
+        final double size = diskCanvas.getWidth() / col;
+        double x = 0, y = 0, length = size * 0.9;
+        final double space = size * 0.1;
+        for (int i = 0; i < 64 * 2; ++i) {
+            context.setFill(fs.read(i) == 0 ? Color.LIGHTGREEN : Color.GREEN);
+            context.fillRect(x, y, length, length);
+            x += length + space;
+            if (i % col == col - 1) {
+                x = 0;
+                y += length + space;
             }
-            break;
-            case SPACE:
-            case ENTER: {
-                FileTreeItem item = (FileTreeItem) fileTreeTableView.getSelectionModel().getSelectedItem();
-                if (item == null) return;
-                item.setExpanded(!item.isExpanded());
-            }
-            break;
         }
-    }
-
-    public void handleOverviewTabSelectionChanged(Event event) {
-        if (overviewTab.isSelected()) {
-            overviewTimeline.play();
-        } else {
-            overviewTimeline.pause();
-        }
-    }
-
-    @Override
-    public void close() {
-        kernel.removeIntExitListener(intEndListener);
     }
 
     public static class OverviewItem {
@@ -429,7 +438,6 @@ public class MonitorController implements Initializable, Closeable {
             for (FilePath f : filePath.list()) {
                 children.add(createFileTreeItem(f));
             }
-            fileTreeTableView.refresh();
         }
 
         @Override
@@ -447,8 +455,8 @@ public class MonitorController implements Initializable, Closeable {
 
         @Override
         public ObservableList<TreeItem<FilePath>> getChildren() {
+            fileTreeTableView.refresh();
             if (childrenLoaded) {
-                fileTreeTableView.refresh();
                 return super.getChildren();
             }
             childrenLoaded = true;

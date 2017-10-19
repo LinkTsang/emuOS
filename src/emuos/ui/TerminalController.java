@@ -60,7 +60,7 @@ public class TerminalController implements Initializable {
         inputArea.appendText(text);
     }
 
-    public void setStage(Stage stage) {
+    void setStage(Stage stage) {
         this.stage = stage;
         stage.setOnCloseRequest(event -> handleAppClose());
         itsRoot = stage.getScene().getRoot();
@@ -115,7 +115,7 @@ public class TerminalController implements Initializable {
         }
     }
 
-    public void initShell(Kernel kernel) {
+    void initShell(Kernel kernel) {
         this.kernel = kernel;
         shell = new Shell(kernel, eis, eos);
         shell.setWaitInputHandler(() -> Platform.runLater(() ->
@@ -184,7 +184,7 @@ public class TerminalController implements Initializable {
     private Stage loadMonitorStage() {
         Stage stage = new Stage();
         FXMLLoader fxmlLoader = new FXMLLoader(getClass().getResource("Monitor.fxml"));
-        Scene monitorScene = null;
+        Scene monitorScene;
         try {
             monitorScene = new Scene(fxmlLoader.load(), 800, 600);
         } catch (IOException e) {
@@ -196,6 +196,8 @@ public class TerminalController implements Initializable {
         stage.setTitle("Monitor");
         stage.setScene(monitorScene);
         stage.getIcons().add(new Image(this.getClass().getResourceAsStream("monitor.png")));
+        stage.setOnHidden(event -> controller.handleHidden());
+        stage.setOnShown(event -> controller.handleShown());
         return stage;
     }
 

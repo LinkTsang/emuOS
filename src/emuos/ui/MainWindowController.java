@@ -25,7 +25,6 @@ import java.util.logging.Logger;
 public class MainWindowController implements Initializable {
 
     private final Stage monitorStage = new Stage();
-    private Scene monitorScene;
 
     /**
      * Initializes the controller class.
@@ -34,7 +33,7 @@ public class MainWindowController implements Initializable {
     public void initialize(URL url, ResourceBundle rb) {
         try {
             Parent monitorRoot = FXMLLoader.load(getClass().getResource("Monitor.fxml"));
-            monitorScene = new Scene(monitorRoot, 300, 250);
+            Scene monitorScene = new Scene(monitorRoot, 300, 250);
             monitorStage.setScene(monitorScene);
             monitorStage.setTitle("Monitor");
             monitorStage.setScene(monitorScene);
