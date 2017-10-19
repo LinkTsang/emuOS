@@ -509,22 +509,26 @@ public class Shell implements Closeable {
                 }
                 String[] arguments = args.split("\\s+");
                 if (arguments.length == 1) {
-                    if (arguments[0].equals("stop")) {
-                        if (spawnTimerTask == null) {
-                            print("No spawning.");
-                            return;
-                        }
-                        if (spawnTimerTask.cancel()) {
-                            print("Stopped spawning.");
-                            spawnTimerTask = null;
-                        } else {
-                            print("Failed to stop spawning.");
-                        }
-                    } else if (arguments[0].equals("status")) {
-                        print(spawnTimerTask == null ? "Stopped" : "Started");
-                    } else {
-                        print("Invalid argument: " + arguments[0] + "\n"
-                                + "Usage: spawn { start [directory] | stop | status }");
+                    switch (arguments[0]) {
+                        case "stop":
+                            if (spawnTimerTask == null) {
+                                print("No spawning.");
+                                return;
+                            }
+                            if (spawnTimerTask.cancel() || spawnTimerTask != null) {
+                                print("Stopped spawning.");
+                                spawnTimerTask = null;
+                            } else {
+                                print("Failed to stop spawning.");
+                            }
+                            break;
+                        case "status":
+                            print(spawnTimerTask == null ? "Stopped" : "Started");
+                            break;
+                        default:
+                            print("Invalid argument: " + arguments[0] + "\n"
+                                    + "Usage: spawn { start [directory] | stop | status }");
+                            break;
                     }
                 } else if (arguments.length == 2 && arguments[0].equals("start")) {
                     if (spawnTimerTask != null) {
@@ -616,34 +620,31 @@ public class Shell implements Closeable {
     }
 
     static class ProcessProducer extends TimerTask {
-
-        private final FilePath[] executable;
         private final Kernel kernel;
         private final Random random = new Random();
+        private final FilePath directory;
 
-        ProcessProducer(Kernel kernel, FilePath dir) {
+        ProcessProducer(Kernel kernel, FilePath directory) {
             this.kernel = kernel;
-            ArrayList<FilePath> list = new ArrayList<>();
-            for (FilePath file : dir.list()) {
-                try {
-                    if (file.isFile() && file.getName().endsWith(".e")) {
-                        list.add(file);
-                    }
-                } catch (FileNotFoundException e) {
-                    e.printStackTrace();
-                }
-            }
-            executable = list.toArray(new FilePath[0]);
+            this.directory = directory;
         }
 
         @Override
         public void run() {
-            if (executable.length == 0) {
-                this.cancel();
-            }
+            Object[] executables = Arrays.stream(directory.list())
+                    .filter(filePath -> {
+                        try {
+                            return filePath.isFile() && filePath.getName().endsWith(".e");
+                        } catch (FileNotFoundException e) {
+                            e.printStackTrace();
+                        }
+                        return false;
+                    })
+                    .toArray();
+            if (executables.length == 0) return;
             if (random.nextBoolean()) return;
             try {
-                kernel.getProcessManager().create(executable[random.nextInt(executable.length)]);
+                kernel.getProcessManager().create((FilePath) executables[random.nextInt(executables.length)]);
             } catch (IOException | ProcessManager.ProcessException e) {
                 e.printStackTrace();
             }
