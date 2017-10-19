@@ -49,22 +49,18 @@ public class DeviceManager {
         }
     }
 
-    public void start() {
-        synchronized (this) {
-            if (!running) {
-                timer.scheduleAtFixedRate(new DeviceTimerTask(), 0, PERIOD);
-                running = true;
-            }
+    public synchronized void start() {
+        if (!running) {
+            timer.scheduleAtFixedRate(new DeviceTimerTask(), 0, PERIOD);
+            running = true;
         }
     }
 
-    public void stop() {
-        synchronized (this) {
-            if (running) {
-                timer.cancel();
-                timer.purge();
-                running = false;
-            }
+    public synchronized void stop() {
+        if (running) {
+            timer.cancel();
+            timer.purge();
+            running = false;
         }
     }
 
@@ -74,6 +70,22 @@ public class DeviceManager {
         if (deviceList != null) {
             deviceList.getWaitingQueue().add(requestInfo);
         }
+    }
+
+    public synchronized boolean detach(ProcessControlBlock pcb) {
+        assert pcb.getState() == ProcessControlBlock.ProcessState.BLOCKED;
+        boolean found = false;
+        for (DeviceList list : deviceListMap.values()) {
+            List<DeviceInfo> deviceInfoList = list.getDeviceInfoList();
+            for (int i = 0, deviceInfoListSize = deviceInfoList.size(); i < deviceInfoListSize; i++) {
+                DeviceInfo info = deviceInfoList.get(i);
+                if (info.PCB.equals(pcb)) {
+                    found = true;
+                    deviceInfoList.remove(i);
+                }
+            }
+        }
+        return found;
     }
 
     public synchronized List<Snapshot> snap() {
@@ -209,21 +221,23 @@ public class DeviceManager {
 
         @Override
         public void run() {
-            for (DeviceList list : deviceListMap.values()) {
-                RequestInfo head = list.getWaitingQueue().peek();
-                for (DeviceInfo deviceInfo : list.getDeviceInfoList()) {
-                    if (!deviceInfo.isIdle()) {
-                        deviceInfo.restTime -= REST_TIME_INTERVAL;
-                        if (deviceInfo.restTime <= 0) {
-                            finishedHandlers.forEach(handler -> handler.handler(deviceInfo));
-                            finishedQueue.add(deviceInfo.getPCB());
-                            deviceInfo.release();
+            synchronized (DeviceManager.this) {
+                for (DeviceList list : deviceListMap.values()) {
+                    RequestInfo head = list.getWaitingQueue().peek();
+                    for (DeviceInfo deviceInfo : list.getDeviceInfoList()) {
+                        if (!deviceInfo.isIdle()) {
+                            deviceInfo.restTime -= REST_TIME_INTERVAL;
+                            if (deviceInfo.restTime <= 0) {
+                                finishedHandlers.forEach(handler -> handler.handler(deviceInfo));
+                                finishedQueue.add(deviceInfo.getPCB());
+                                deviceInfo.release();
+                            }
                         }
-                    }
-                    if (head != null && deviceInfo.isIdle()) {
-                        head = list.getWaitingQueue().poll();
-                        deviceInfo.alloc(head.getPCB(), head.getTime());
-                        head = list.getWaitingQueue().peek();
+                        if (head != null && deviceInfo.isIdle()) {
+                            head = list.getWaitingQueue().poll();
+                            deviceInfo.alloc(head.getPCB(), head.getTime());
+                            head = list.getWaitingQueue().peek();
+                        }
                     }
                 }
             }

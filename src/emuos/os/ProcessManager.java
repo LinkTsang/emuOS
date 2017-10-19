@@ -15,6 +15,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.logging.Logger;
 
 /**
  * @author Link
@@ -24,13 +25,11 @@ public class ProcessManager {
     private final BlockingQueue<ProcessControlBlock> blockedQueue = new LinkedBlockingQueue<>();
     private final BlockingQueue<ProcessControlBlock> readyQueue = new LinkedBlockingQueue<>();
     private final Kernel kernel;
-    private final MemoryManager memoryManager;
     private ProcessControlBlock runningProcess;
     private int nextPID = 1;
 
     ProcessManager(Kernel kernel, MemoryManager memoryManager) {
         this.kernel = kernel;
-        this.memoryManager = memoryManager;
     }
 
     ProcessControlBlock create(String path) throws IOException, ProcessException {
@@ -53,6 +52,7 @@ public class ProcessManager {
             throw new ProcessException("Create Process Failed: The image file \"" + imageFile.getPath() + "\" is empty.");
         }
 
+        MemoryManager memoryManager = kernel.getMemoryManager();
         int address = memoryManager.alloc(imageSize);
         if (address < 0) {
             throw new ProcessException("There is not enough memory to allocate for the new process.");
@@ -74,20 +74,28 @@ public class ProcessManager {
         return PCB;
     }
 
-    synchronized void destroy(ProcessControlBlock PCB) {
+    synchronized boolean destroy(ProcessControlBlock PCB) {
+        Logger logger = Logger.getLogger(this.getClass().getName());
+        MemoryManager memoryManager = kernel.getMemoryManager();
         if (PCB.equals(runningProcess)) {
             assert PCB.getState() == ProcessState.RUNNING;
             runningProcess = null;
         } else if (!readyQueue.remove(PCB)) {
-            // FIXME: stop IO?
-            // blockedQueue.remove(PCB);
-            throw new RuntimeException("There is no such PCB in readyQueue.");
+            if (!blockedQueue.remove(PCB)) {
+                logger.warning(PCB + " is not in the progress queue.");
+                return false;
+            }
+            if (!kernel.getDeviceManager().detach(PCB)) {
+                logger.warning(PCB + " is not in the device requiring queue.");
+                return false;
+            }
         }
         memoryManager.free(PCB.getStartAddress());
         if (!memoryManager.removePCB(PCB)) {
-            throw new RuntimeException("There is no such PCB.");
+            logger.warning(PCB + " is not in the memory");
         }
         schedule();
+        return true;
     }
 
     synchronized void block(ProcessControlBlock PCB) {
@@ -103,7 +111,7 @@ public class ProcessManager {
             PCB.setState(ProcessState.BLOCKED);
             getBlockedQueue().add(PCB);
         } else {
-            throw new RuntimeException("Wrong PCB state");
+            Logger.getLogger(this.getClass().getName()).warning("Wrong PCB state: " + PCB);
         }
     }
 
@@ -113,7 +121,7 @@ public class ProcessManager {
             PCB.setState(ProcessState.READY);
             getReadyQueue().add(PCB);
         } else {
-            throw new RuntimeException("Wrong PCB state");
+            Logger.getLogger(this.getClass().getName()).warning("Wrong PCB state: " + PCB);
         }
     }
 
@@ -156,6 +164,7 @@ public class ProcessManager {
      * @return the snapshot of processes
      */
     public synchronized List<Snapshot> snap() {
+        MemoryManager memoryManager = kernel.getMemoryManager();
         List<Snapshot> snapshots = new ArrayList<>();
         snapshots.add(Snapshot.IDLE);
         if (runningProcess != null) {
