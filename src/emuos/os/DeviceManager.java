@@ -109,7 +109,17 @@ public class DeviceManager {
                     status = Snapshot.Status.BUSY;
                     PID = info.getPCB().getPID();
                 }
-                snapshots.add(new Snapshot(info.getType(), status, PID));
+                snapshots.add(new Snapshot(info.getType(), status, PID, info.restTime));
+            }
+        }
+        return snapshots;
+    }
+
+    public synchronized List<RequestInfo> snapRequestInfo() {
+        List<RequestInfo> snapshots = new LinkedList<>();
+        for (DeviceList list : deviceListMap.values()) {
+            for (RequestInfo requestInfo : list.getWaitingQueue()) {
+                snapshots.add(new RequestInfo(requestInfo.pcb, requestInfo.deviceType, requestInfo.time));
             }
         }
         return snapshots;
@@ -176,6 +186,7 @@ public class DeviceManager {
         public int getTime() {
             return time;
         }
+
     }
 
     private static class DeviceList {
@@ -203,11 +214,13 @@ public class DeviceManager {
         private int ID;
         private Status status;
         private int PID;
+        private int restTime;
 
-        public Snapshot(int ID, Status status, int PID) {
+        public Snapshot(int ID, Status status, int PID, int restTime) {
             this.ID = ID;
             this.status = status;
             this.PID = PID;
+            this.restTime = restTime;
         }
 
         public int getID() {
@@ -220,6 +233,10 @@ public class DeviceManager {
 
         public int getPID() {
             return PID;
+        }
+
+        public int getRestTime() {
+            return restTime;
         }
 
         public enum Status {
