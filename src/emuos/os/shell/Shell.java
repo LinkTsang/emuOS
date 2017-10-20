@@ -511,6 +511,28 @@ public class Shell implements Closeable {
             }
         });
 
+        registerCommandHandler(new Command("kill") {
+            @Override
+            public void execute(String args) {
+                if (args.isEmpty()) {
+                    print("Usage: kill [PID]");
+                    return;
+                }
+                int PID = 0;
+                try {
+                    PID = Integer.parseInt(args);
+                } catch (NumberFormatException ignored) {
+                    print("kill: arguments must be PID");
+                    return;
+                }
+                if (kernel.getProcessManager().destroy(PID)) {
+                    print("Killed!");
+                } else {
+                    print("Failed to kill the process " + PID);
+                }
+            }
+        });
+
         registerCommandHandler(new Command("bg") {
             @Override
             public void execute(String args) {

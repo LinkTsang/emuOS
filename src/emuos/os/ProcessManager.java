@@ -98,6 +98,20 @@ public class ProcessManager {
         return true;
     }
 
+    public synchronized boolean destroy(int PID) {
+        if (runningProcess != null && runningProcess.getPID() == PID)
+            return destroy(runningProcess);
+        return readyQueue.stream()
+                .filter(b -> b.getPID() == PID)
+                .findFirst()
+                .map(this::destroy)
+                .orElseGet(() -> blockedQueue.stream()
+                        .filter(b -> b.getPID() == PID)
+                        .findFirst()
+                        .filter(this::destroy)
+                        .isPresent());
+    }
+
     synchronized void block(ProcessControlBlock PCB) {
         if (PCB.equals(runningProcess)) {
             assert PCB.getState() == ProcessState.RUNNING;

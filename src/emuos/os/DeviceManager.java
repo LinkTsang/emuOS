@@ -73,19 +73,30 @@ public class DeviceManager {
     }
 
     public synchronized boolean detach(ProcessControlBlock pcb) {
+        if (pcb == null) return false;
         assert pcb.getState() == ProcessControlBlock.ProcessState.BLOCKED;
-        boolean found = false;
         for (DeviceList list : deviceListMap.values()) {
-            List<DeviceInfo> deviceInfoList = list.getDeviceInfoList();
-            for (int i = 0, deviceInfoListSize = deviceInfoList.size(); i < deviceInfoListSize; i++) {
-                DeviceInfo info = deviceInfoList.get(i);
-                if (info.PCB.equals(pcb)) {
-                    found = true;
-                    deviceInfoList.remove(i);
+            boolean detached = false;
+            for (DeviceInfo deviceInfo : list.getDeviceInfoList()) {
+                if (pcb.equals(deviceInfo.getPCB())) {
+                    deviceInfo.release();
+                    detached = true;
+                    break;
                 }
             }
+            if (detached) return true;
+            Iterator<RequestInfo> iterator = list.getWaitingQueue().iterator();
+            while (iterator.hasNext()) {
+                RequestInfo requestInfo = iterator.next();
+                if (pcb.equals(requestInfo.getPCB())) {
+                    iterator.remove();
+                    detached = true;
+                    break;
+                }
+            }
+            if (detached) return true;
         }
-        return found;
+        return false;
     }
 
     public synchronized List<Snapshot> snap() {
