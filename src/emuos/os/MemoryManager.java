@@ -191,6 +191,21 @@ public class MemoryManager {
     }
 
     /**
+     * get the PCB
+     *
+     * @param PID PID
+     * @return PCB
+     */
+    public ProcessControlBlock getPCB(int PID) {
+        synchronized (PCBList) {
+            for (ProcessControlBlock pcb : PCBList) {
+                if (pcb != null && pcb.getPID() == PID) return pcb;
+            }
+        }
+        return null;
+    }
+
+    /**
      * @param address address
      * @return size
      */
