@@ -99,7 +99,7 @@ public class DeviceManager {
         return false;
     }
 
-    public synchronized List<Snapshot> snap() {
+    public synchronized List<Snapshot> snapDeviceInfo() {
         List<Snapshot> snapshots = new LinkedList<>();
         for (DeviceList list : deviceListMap.values()) {
             for (DeviceInfo info : list.getDeviceInfoList()) {

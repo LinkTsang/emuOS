@@ -73,6 +73,8 @@ public class MonitorController implements Initializable {
             FXCollections.observableArrayList();
     private final ObservableList<DeviceManager.Snapshot> deviceList =
             FXCollections.observableArrayList();
+    private final ObservableList<DeviceManager.RequestInfo> deviceRequestList =
+            FXCollections.observableArrayList();
     private final XYChart.Series<Number, Number> kernelUsageSeries = new XYChart.Series<>();
     private final XYChart.Series<Number, Number> memoryUsageSeries = new XYChart.Series<>();
     private final Image folderIcon = new Image(getClass().getResourceAsStream("folder.png"));
@@ -106,6 +108,13 @@ public class MonitorController implements Initializable {
     public TableColumn<DeviceManager.Snapshot, Integer> deviceIDCol;
     public TableColumn<DeviceManager.Snapshot, String> deviceStatusCol;
     public TableColumn<DeviceManager.Snapshot, Integer> devicePIDCol;
+    public TableView<DeviceManager.RequestInfo> deviceRequestTable;
+    public TableColumn<DeviceManager.Snapshot, Integer> deviceRestTime;
+    public TableColumn<DeviceManager.Snapshot, String> deviceImageCol;
+    public TableColumn<DeviceManager.RequestInfo, String> deviceReqPIDCol;
+    public TableColumn<DeviceManager.RequestInfo, Integer> deviceReqIDCol;
+    public TableColumn<DeviceManager.RequestInfo, Integer> deviceReqTimeCol;
+    public TableColumn<DeviceManager.RequestInfo, String> deviceReqImageCol;
     public Canvas diskCanvas;
     public Canvas memoryCanvas;
     public TreeTableView<FilePath> fileTreeTableView;
@@ -221,7 +230,8 @@ public class MonitorController implements Initializable {
         devicesTimeline = new Timeline(new KeyFrame(Duration.millis(200), ae -> {
             TableView.TableViewSelectionModel<DeviceManager.Snapshot> model = devicesTable.getSelectionModel();
             int index = model.getSelectedIndex();
-            deviceList.setAll(kernel.getDeviceManager().snap());
+            deviceList.setAll(kernel.getDeviceManager().snapDeviceInfo());
+            deviceRequestList.setAll(kernel.getDeviceManager().snapRequestInfo());
             model.select(index);
         }));
         devicesTimeline.setCycleCount(Animation.INDEFINITE);
@@ -316,7 +326,20 @@ public class MonitorController implements Initializable {
         deviceIDCol.setCellValueFactory(new PropertyValueFactory<>("ID"));
         deviceStatusCol.setCellValueFactory(new PropertyValueFactory<>("Status"));
         devicePIDCol.setCellValueFactory(new PropertyValueFactory<>("PID"));
+        deviceRestTime.setCellValueFactory(new PropertyValueFactory<>("RestTime"));
+        deviceImageCol.setCellValueFactory(param -> {
+            ProcessControlBlock pcb = kernel.getMemoryManager().getPCB(param.getValue().getPID());
+            return new ReadOnlyStringWrapper(pcb == null ? "[UNKNOWN]" : pcb.getImageFile().getPath());
+        });
         devicesTable.setItems(deviceList);
+
+        deviceReqPIDCol.setCellValueFactory(param -> new ReadOnlyStringWrapper(
+                String.valueOf(param.getValue().getPCB().getPID())));
+        deviceReqIDCol.setCellValueFactory(new PropertyValueFactory<>("DeviceType"));
+        deviceReqTimeCol.setCellValueFactory(new PropertyValueFactory<>("Time"));
+        deviceReqImageCol.setCellValueFactory(param -> new ReadOnlyStringWrapper(
+                String.valueOf(param.getValue().getPCB().getImageFile().getPath())));
+        deviceRequestTable.setItems(deviceRequestList);
 
         fileNameCol.setCellValueFactory(param -> {
             TreeItem<FilePath> item = param.getValue();

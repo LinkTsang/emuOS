@@ -98,22 +98,38 @@
                 </Tab>
                 <Tab fx:id="devicesTab" onSelectionChanged="#handleDevicesTabSelectionChanged" text="Devices">
                     <content>
-                        <AnchorPane minHeight="0.0" minWidth="0.0" prefHeight="180.0" prefWidth="200.0">
-                            <children>
-                                <TableView fx:id="devicesTable" prefHeight="200.0" prefWidth="200.0"
-                                           AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0"
-                                           AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
+                        <SplitPane dividerPositions="0.5">
+                            <items>
+                                <TableView fx:id="devicesTable" AnchorPane.bottomAnchor="0.0"
+                                           AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0"
+                                           AnchorPane.topAnchor="0.0">
                                     <placeholder>
                                         <Label/>
                                     </placeholder>
                                     <columns>
-                                        <TableColumn fx:id="deviceIDCol" prefWidth="75.0" text="ID"/>
-                                        <TableColumn fx:id="deviceStatusCol" prefWidth="75.0" text="Status"/>
-                                        <TableColumn fx:id="devicePIDCol" prefWidth="75.0" text="PID"/>
+                                        <TableColumn fx:id="deviceIDCol" prefWidth="41.0" text="ID"/>
+                                        <TableColumn fx:id="deviceStatusCol" prefWidth="74.0" text="Status"/>
+                                        <TableColumn fx:id="devicePIDCol" prefWidth="49.0" text="PID"/>
+                                        <TableColumn fx:id="deviceRestTime" prefWidth="68.0" text="Rest Time"/>
+                                        <TableColumn fx:id="deviceImageCol" prefWidth="102.0" text="Image"/>
                                     </columns>
                                 </TableView>
-                            </children>
-                        </AnchorPane>
+                                <TableView fx:id="deviceRequestTable">
+                                    <placeholder>
+                                        <Label text="No waiting processes"/>
+                                    </placeholder>
+                                    <columns>
+                                        <TableColumn fx:id="deviceReqPIDCol" prefWidth="44.0" text="PID"/>
+                                        <TableColumn fx:id="deviceReqIDCol" minWidth="0.0" prefWidth="76.0"
+                                                     text="ReqDevice"/>
+                                        <TableColumn fx:id="deviceReqTimeCol" minWidth="0.0" prefWidth="65.0"
+                                                     text="ReqTime"/>
+                                        <TableColumn fx:id="deviceReqImageCol" minWidth="8.0" prefWidth="149.0"
+                                                     text="Image"/>
+                                    </columns>
+                                </TableView>
+                            </items>
+                        </SplitPane>
                     </content>
                 </Tab>
                 <Tab fx:id="diskTab" onSelectionChanged="#handleDiskTabSelectionChanged" text="Disk">
