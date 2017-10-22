@@ -18,7 +18,9 @@ import javafx.beans.property.ReadOnlyStringWrapper;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
 import javafx.collections.FXCollections;
+import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
+import javafx.event.ActionEvent;
 import javafx.event.Event;
 import javafx.fxml.Initializable;
 import javafx.scene.canvas.Canvas;
@@ -94,6 +96,7 @@ public class MonitorController implements Initializable {
     };
     public Tab processesTab;
     public Tab devicesTab;
+    public Tab eventsTab;
     public Tab diskTab;
     public TableView<OverviewItem> overviewTable;
     public TableColumn<OverviewItem, String> overviewItemCol;
@@ -115,6 +118,14 @@ public class MonitorController implements Initializable {
     public TableColumn<DeviceManager.RequestInfo, Integer> deviceReqIDCol;
     public TableColumn<DeviceManager.RequestInfo, Integer> deviceReqTimeCol;
     public TableColumn<DeviceManager.RequestInfo, String> deviceReqImageCol;
+    public TableView<ProcessEventInfo> eventsTableView;
+    public TableColumn<ProcessEventInfo, Long> eventTimeCol;
+    public TableColumn<ProcessEventInfo, Integer> eventPIDCol;
+    public TableColumn<ProcessEventInfo, String> eventTypeCol;
+    public TableColumn<ProcessEventInfo, Integer> eventPCCol;
+    public TableColumn<ProcessEventInfo, Integer> eventAXCol;
+    public TableColumn<ProcessEventInfo, ProcessControlBlock> eventContentCol;
+    public CheckBox autoScrollCheckBox;
     public Canvas diskCanvas;
     public Canvas memoryCanvas;
     public TreeTableView<FilePath> fileTreeTableView;
@@ -188,6 +199,26 @@ public class MonitorController implements Initializable {
         this.kernel = kernel;
         memoryLabel.setText(String.format("%.0f Bytes/Block",
                 kernel.getMemoryManager().getMaxUserSpaceSize() * 1.0 / MEMORY_USAGE_VIEW_TOTAL_COUNT));
+
+        initProcessEventListeners();
+    }
+
+    private void initProcessEventListeners() {
+        ProcessManager processManager = kernel.getProcessManager();
+        processManager.addOnCreateListener(info -> Platform.runLater(() -> eventsTableView.getItems().add(info)));
+        processManager.addOnBlockListener(info -> Platform.runLater(() -> eventsTableView.getItems().add(info)));
+        processManager.addOnAwakeListener(info -> Platform.runLater(() -> eventsTableView.getItems().add(info)));
+        processManager.addOnScheduleListener(info -> Platform.runLater(() -> eventsTableView.getItems().add(info)));
+        processManager.addOnDestroyListener(info -> Platform.runLater(() -> eventsTableView.getItems().add(info)));
+
+        eventsTableView.getItems().addListener((ListChangeListener<ProcessEventInfo>) (c -> {
+            if (!eventsTab.isSelected() || !autoScrollCheckBox.isSelected()) return;
+            c.next();
+            int size = eventsTableView.getItems().size();
+            if (size > 0) {
+                eventsTableView.scrollTo(size - 1);
+            }
+        }));
     }
 
     private void initTimeLine() {
@@ -341,6 +372,12 @@ public class MonitorController implements Initializable {
                 String.valueOf(param.getValue().getPCB().getImageFile().getPath())));
         deviceRequestTable.setItems(deviceRequestList);
 
+        eventTimeCol.setCellValueFactory(new PropertyValueFactory<>("Time"));
+        eventPIDCol.setCellValueFactory(new PropertyValueFactory<>("PID"));
+        eventTypeCol.setCellValueFactory(new PropertyValueFactory<>("Type"));
+        eventPCCol.setCellValueFactory(new PropertyValueFactory<>("PC"));
+        eventAXCol.setCellValueFactory(new PropertyValueFactory<>("AX"));
+        eventContentCol.setCellValueFactory(new PropertyValueFactory<>("PCB"));
         fileNameCol.setCellValueFactory(param -> {
             TreeItem<FilePath> item = param.getValue();
             return item == null
@@ -412,6 +449,10 @@ public class MonitorController implements Initializable {
                 y += length + space;
             }
         }
+    }
+
+    public void handleEventClearButton(ActionEvent actionEvent) {
+        eventsTableView.getItems().clear();
     }
 
     public static class OverviewItem {

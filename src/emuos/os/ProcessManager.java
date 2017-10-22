@@ -11,8 +11,7 @@ import emuos.os.Kernel.Context;
 import emuos.os.ProcessControlBlock.ProcessState;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.logging.Logger;
@@ -25,11 +24,56 @@ public class ProcessManager {
     private final BlockingQueue<ProcessControlBlock> blockedQueue = new LinkedBlockingQueue<>();
     private final BlockingQueue<ProcessControlBlock> readyQueue = new LinkedBlockingQueue<>();
     private final Kernel kernel;
+    private final Collection<Listener> onCreateListeners = Collections.synchronizedList(new LinkedList<>());
+    private final Collection<Listener> onDestroyListeners = Collections.synchronizedList(new LinkedList<>());
+    private final Collection<Listener> onAwakeListeners = Collections.synchronizedList(new LinkedList<>());
+    private final Collection<Listener> onBlockListeners = Collections.synchronizedList(new LinkedList<>());
+    private final Collection<Listener> onScheduleListeners = Collections.synchronizedList(new LinkedList<>());
     private ProcessControlBlock runningProcess;
     private int nextPID = 1;
 
     ProcessManager(Kernel kernel, MemoryManager memoryManager) {
         this.kernel = kernel;
+    }
+
+    public boolean addOnCreateListener(Listener listener) {
+        return onCreateListeners.add(listener);
+    }
+
+    public boolean addOnDestroyListener(Listener listener) {
+        return onDestroyListeners.add(listener);
+    }
+
+    public boolean addOnAwakeListener(Listener listener) {
+        return onAwakeListeners.add(listener);
+    }
+
+    public boolean addOnBlockListener(Listener listener) {
+        return onBlockListeners.add(listener);
+    }
+
+    public boolean addOnScheduleListener(Listener listener) {
+        return onScheduleListeners.add(listener);
+    }
+
+    public boolean removeOnCreateListener(Listener listener) {
+        return onCreateListeners.remove(listener);
+    }
+
+    public boolean removeOnDestroyListener(Listener listener) {
+        return onDestroyListeners.remove(listener);
+    }
+
+    public boolean removeOnAwakeListener(Listener listener) {
+        return onAwakeListeners.remove(listener);
+    }
+
+    public boolean removeOnBlockListener(Listener listener) {
+        return onBlockListeners.remove(listener);
+    }
+
+    public boolean removeOnScheduleListener(Listener listener) {
+        return onScheduleListeners.remove(listener);
     }
 
     ProcessControlBlock create(String path) throws IOException, ProcessException {
@@ -71,6 +115,7 @@ public class ProcessManager {
             throw new ProcessException("There is not enough PCB spaces for the new process.");
         }
         getReadyQueue().add(PCB);
+        onCreateListeners.forEach(listener -> listener.handle(new ProcessEventInfo(kernel.getTime(), "CREATED", PCB)));
         return PCB;
     }
 
@@ -94,6 +139,7 @@ public class ProcessManager {
         if (!memoryManager.removePCB(PCB)) {
             logger.warning(PCB + " is not in the memory");
         }
+        onDestroyListeners.forEach(listener -> listener.handle(new ProcessEventInfo(kernel.getTime(), "DESTROYED", PCB)));
         schedule();
         return true;
     }
@@ -127,6 +173,7 @@ public class ProcessManager {
         } else {
             Logger.getLogger(this.getClass().getName()).warning("Wrong PCB state: " + PCB);
         }
+        onBlockListeners.forEach(listener -> listener.handle(new ProcessEventInfo(kernel.getTime(), "BLOCKED", PCB)));
     }
 
     synchronized void awake(ProcessControlBlock PCB) {
@@ -137,12 +184,14 @@ public class ProcessManager {
         } else {
             Logger.getLogger(this.getClass().getName()).warning("Wrong PCB state: " + PCB);
         }
+        onAwakeListeners.forEach(listener -> listener.handle(new ProcessEventInfo(kernel.getTime(), "AWAKE", PCB)));
     }
 
     synchronized void schedule() {
         if (runningProcess != null) {
             runningProcess.saveContext(kernel.getContext());
             runningProcess.setState(ProcessState.READY);
+            onScheduleListeners.forEach(listener -> listener.handle(new ProcessEventInfo(kernel.getTime(), "SCHEDULED", runningProcess)));
             readyQueue.add(runningProcess);
         }
         runningProcess = readyQueue.poll();
@@ -150,6 +199,7 @@ public class ProcessManager {
         if (runningProcess != null) {
             runningProcess.setState(ProcessState.RUNNING);
             kernel.setContext(runningProcess.getContext());
+            onScheduleListeners.forEach(listener -> listener.handle(new ProcessEventInfo(kernel.getTime(), "SCHEDULED", runningProcess)));
         }
     }
 
@@ -191,6 +241,10 @@ public class ProcessManager {
             snapshots.add(new Snapshot(memoryManager, pcb));
         }
         return snapshots;
+    }
+
+    public interface Listener {
+        void handle(ProcessEventInfo info);
     }
 
     /**

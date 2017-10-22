@@ -132,6 +132,37 @@
                         </SplitPane>
                     </content>
                 </Tab>
+                <Tab fx:id="eventsTab" text="Events">
+                    <content>
+                        <VBox AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0"
+                              AnchorPane.topAnchor="0.0">
+                            <children>
+                                <TableView fx:id="eventsTableView" VBox.vgrow="ALWAYS">
+                                    <placeholder>
+                                        <Label text="No Events"/>
+                                    </placeholder>
+                                    <columns>
+                                        <TableColumn fx:id="eventTimeCol" minWidth="-1.0" prefWidth="40.0" text="Time"/>
+                                        <TableColumn fx:id="eventPIDCol" minWidth="-1.0" prefWidth="30.0" text="PID"/>
+                                        <TableColumn fx:id="eventTypeCol" minWidth="-1.0" prefWidth="110.0"
+                                                     text="Event"/>
+                                        <TableColumn fx:id="eventPCCol" minWidth="-1.0" prefWidth="30.0" text="PC"/>
+                                        <TableColumn fx:id="eventAXCol" minWidth="-1.0" prefWidth="30.0" text="AX"/>
+                                        <TableColumn fx:id="eventContentCol" prefWidth="500.0" text="Content"/>
+                                    </columns>
+                                </TableView>
+                                <ToolBar nodeOrientation="LEFT_TO_RIGHT" VBox.vgrow="ALWAYS">
+                                    <items>
+                                        <CheckBox fx:id="autoScrollCheckBox" mnemonicParsing="false" text="AutoScroll"/>
+                                        <Pane HBox.hgrow="ALWAYS"/>
+                                        <Button mnemonicParsing="false" onAction="#handleEventClearButton"
+                                                text="Clear"/>
+                                    </items>
+                                </ToolBar>
+                            </children>
+                        </VBox>
+                    </content>
+                </Tab>
                 <Tab fx:id="diskTab" onSelectionChanged="#handleDiskTabSelectionChanged" text="Disk">
                     <content>
                         <GridPane>
